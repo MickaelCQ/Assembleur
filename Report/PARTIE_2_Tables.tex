@@ -1,0 +1,41 @@
+%-------------------------------------------------------------------------------------------------
+%                                    TABLE DES ABBREVIATIONS ET DES SYMBOLES
+%-------------------------------------------------------------------------------------------------x
+\setlength{\nomitemsep}{-2pt} % Réduit l'espacement entre les items de nomenclature
+% Table des symboles
+%\nomenclature{{\large \textbf{$R_e$}}}{Lectures alignés sur l'échantillon \(e\)}
+%\nomenclature{{\large \textbf{$F_e$}}}{Fragments alignés pour l'échantillon \(e\)}
+%\nomenclature{{\large \textbf{$L_g$}}}{Longueur du gène d'intérêt \(g\)}
+%\nomenclature{{\large \textbf{$\lambda_{x}$}}}{Facteur d'échelle de l'élément x}
+%\nomenclature{{\large \textbf{$M_{g,e}$}}}{M-value pour le gène \(g\) dans l'échantillon \(e\)}
+%\nomenclature{{\large \textbf{$A_{g,e}$}}}{A-value pour le gène \(g\) dans l'échantillon \(e\)}
+%\nomenclature{{\large \textbf{$w_{g,e}$}}}{Poids basé sur la variance des M-values pour le gène \(g\) dans l'échantillon \(e\)}
+%\nomenclature{{\large \textbf{$NR_{x}$}}}{Lectures Normalisées de l'élément x }
+%\nomenclature{{\large \textbf{$\Pi$}}}{Produit}
+%\nomenclature{{\large \textbf{$\sum$}}}{Somme}
+%\nomenclature{{\large \textbf{$M_{g}$}}}{Moyenne géométrique du gène \(g\)}
+%\nomenclature{{\large \textbf{$Q3_{g}$}}}{Troisième quartile des valeurs d'expression du gène \(g\)}
+%\nomenclature{{\large \textbf{$Med_{x}$}}}{Médiane de l'élément x}
+%\nomenclature{{\large \textbf{$k$}}}{Référence}
+%-------------------------------------------------------------------------------------------------
+%                                    TABLE DES FIGURES, TABLEAUX ET CODES
+%-------------------------------------------------------------------------------------------------
+\selectlanguage{french}
+%____________________  Montage de la table des figures et des tableaux _______________
+
+% Définir un nouvel environnement de flottant pour minted
+\newfloat{listing}{htbp}{lop}
+\floatname{listing}{Code}
+
+% Redéfinir le titre de la liste des listings
+\renewcommand{\lstlistlistingname}{Liste des codes}
+
+%-------------------------------------------------------------------------------------------------
+%                                            TABLE DES MATIERES
+%-------------------------------------------------------------------------------------------------
+\pagenumbering{gobble} % Désactive la numérotation des pages
+\thispagestyle{empty} % Supprime la numérotation sur cette page uniquement
+\tableofcontents
+
+\newpage
+\pagenumbering{arabic} % Réactive la numérotation en chiffres arabes
