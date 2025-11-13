@@ -1,0 +1,21 @@
+[workspace]
+channels = ["conda-forge"]
+name = "Assembleur"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks._preparedir]
+cmd = "mkdir -p build"
+
+[tasks._configure]
+cmd = "cmake -S . -B build"
+description = "Configure the C++ project using CMake"
+
+[tasks.build]
+cmd = "cmake --build build"
+description = "Build the C++ project using CMake"
+depends-on = ["_preparedir", "_configure"]
+
+[dependencies]
+cmake = ">=4.1.2,<5"
+gtest = ">=1.17.0,<2"
