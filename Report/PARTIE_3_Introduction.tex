@@ -1,0 +1,73 @@
+\vspace{-12mm}
+\section{Introduction}
+\subsection{Stratégies étudiées en cours (Exercice~1)}
+
+Nous avons vu que la recherche d’une \underline{superchaîne optimale} contenant tous les mots d’une famille \(\mathcal{F}\) est un problème NP-difficile. Par conséquent, nous utilisons des \underline{approches heuristiques} : celles-ci fournissent une solution, mais sans garantie d’optimalité. Trois méthodes ont été étudiées et développées durant le semestre. Comme demandé, voici une synthèse de chacune.
+
+\subsubsection{Méthode gloutonne}
+
+Cette première approche repose sur les \underline{choix locaux optimaux} (maximisation des \textit{overlaps}), mais sans assurance d’optimalité globale. On va comparer nos mots deux à deux pour identifier leurs chevauchements. Sélectionner le plus long et fusionner les deux mots concernés (créer des contigs). On répéte ainsi l’opération jusqu’à obtenir la superchaîne $\mathcal{S}$. On stock nos \textit{overlaps} dans une matrice $\mathcal{M}$ de $n x n $ séquences. Ci-dessous la stratégie construite à partir de la correction du TD :  \\
+
+\begin{center}
+\begin{algorithm}[H]
+\textcolor{bleumarine}{\textbf{\caption{\textcolor{bleumarine}{Assemblage\_Glouton()}}}}
+\KwEntree{Famille de mots \( F \) de taille \( n \), où \( L \) est la longueur moyenne des mots}
+\KwSortie{Chaîne de caractères \( S \) assemblée}
+\KwComplexite{Temps : \(\mathcal{O}(n^3 + n^2 L)\), Espace : \(\mathcal{O}(n^2)\)}
+\KwDebut \\
+    \Indp
+     \( S \gets \text{""} \) \textcolor{black!50} ; \( M \gets \) tableau d'entiers de taille \( n \times n \) \textcolor{black!50}{~($\mathcal{O}(n^2)$)}\;
+    \KwPour \( i \) allant de \( 0 \) à \( n-1 \) \KwFaire \textcolor{black!50}{~($\mathcal{O}(n^2 L)$)}\\
+        \Indp
+        \KwPour \( j \) allant de \( 0 \) à \( n-1 \) \KwFaire \textcolor{black!50}{~($\mathcal{O}(n L)$)}\\
+            \Indp
+            \( M[i][j] \gets \text{longueur du chevauchement maximal entre } F[i] \text{ et } F[j] \) \textcolor{black!50}{~($\mathcal{O}(L)$)}\;
+            \Indm
+        \KwFinPour \\
+        \Indm
+    \KwFinPour \\
+    \( m \gets 0 \) \textcolor{black!50}\;
+    \KwTantQue \( m < n-1 \) \KwFaire \textcolor{black!50}{~($\mathcal{O}(n)$)}\\
+        \Indp
+        \( \textit{imax} \gets 0 \); \( \textit{jmax} \gets 0 \); \( \textit{max} \gets M[0][0] \) \textcolor{black!50}\;
+        \KwPour \( i \) allant de \( 0 \) à \( n-1 \) \KwFaire \textcolor{black!50}{~($\mathcal{O}(n^2)$)}\\
+            \Indp
+            \KwPour \( j \) allant de \( 0 \) à \( n-1 \) \KwFaire \textcolor{black!50}{~($\mathcal{O}(n)$)}\\
+                \Indp
+                \KwSi \( \textit{max} < M[i][j] \) \KwAlors \textcolor{black!50}\\
+                    \Indp
+                    \( \textit{imax} \gets i \); \( \textit{jmax} \gets j \); \( \textit{max} \gets M[i][j] \) \textcolor{black!50}\;
+                    \Indm
+                \KwFinSi \\
+                \Indm
+            \KwFinPour \\
+            \Indm
+        \KwFinPour \\
+        \( S \gets S + F[\textit{imax}][0:\text{longueur}(F[\textit{imax}]) - \textit{max}] \) \textcolor{black!50}{~($\mathcal{O}(L)$)}\;
+        \( S \gets S + F[\textit{jmax}] \) \textcolor{black!50}{~($\mathcal{O}(L)$)}\;
+        \KwPour \( i \) allant de \( 0 \) à \( n-1 \) \KwFaire \textcolor{black!50}{~($\mathcal{O}(n)$)}\\
+            \Indp
+            \( M[\textit{imax}][i] \gets -1 \); \( M[i][\textit{jmax}] \gets -1 \) \textcolor{black!50}\;
+            \Indm
+        \KwFinPour \\
+        \( m \gets m + 1 \) \textcolor{black!50}\;
+        \Indm
+    \KwFinTantQue \\
+    \KwRetourner \( S \) \textcolor{black!50}\;
+\Indm
+\KwFin
+\end{algorithm}
+\end{center}
+
+\subsection{Notre approche}
+
+\subsection{Choix du langage \textit{(Exercice 3)}}
+Dans la création de cette assembleur, la question de langage c'est posé.
+
+Nous avons le choix entre pléthore de langages, notamment \texttt{Python}, \texttt{C++} ou d'autre encore comme le go.
+Notre choix finale se porte sur le \texttt{C++}, prédécesseur du \texttt{C}, qui est un langage compilé donnant des performances excellentes en laissant le développeur contrôlé chaque point du programme. 
+Il permet de définir et libérer la mémoire manuellement, permettant un gain de place et de temps important. 
+
+D'autre langages comme \texttt{Python} aurait peut être facilité la programmation et augmenté la lisibilité et la réutilisation par tous, mais a contrepartie une perte de performance.
+
+\newpage

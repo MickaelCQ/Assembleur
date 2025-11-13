@@ -1,0 +1,50 @@
+%___________________________ Montage de la page de garde ______________________________
+
+\begin{titlepage}
+% Bande large et claire en arrière-plan
+%\begin{tikzpicture}[remember picture, overlay]
+    %\fill[gray!5] ($(current page.north west) + (0, -11cm)$) rectangle ($(current page.south east) + (1, 14cm)$);
+%\end{tikzpicture}    
+
+% Image de fond avec réglage de l'opacité et de l'échelle
+
+\begin{minipage}{0.31\textwidth}
+    \centering
+    \includegraphics[height=2.5cm]{LOGOS/U_Montpellier.png} % Ajuste la hauteur
+\vspace{1mm}
+\end{minipage}
+\begin{minipage}{0.31\textwidth}
+    \centering
+    \includegraphics[height=2.5cm]{LOGOS/Master_Bioinfo.png} % Ajuste la hauteur
+    \vspace{1mm}
+\end{minipage}%
+\begin{minipage}{0.31\textwidth}
+    \centering
+    \includegraphics[height=2.4cm]{LOGOS/Fds.png} % Ajuste la hauteur
+    \vspace{1mm}
+\end{minipage}
+\vspace{5mm}
+
+\centering 
+{\scshape\LARGE Université de Montpellier \\ Projet Assemblage\par} % Nom de l'université
+    \vspace{2mm}
+
+\vspace{2mm}
+{\Large\bfseries Projet assemblage\par}
+\vspace{4mm}
+\rule{\linewidth}{0.3 mm} \\[0.5 cm]
+\textbf{\large Auteurs :\\} \large Mickael Coquerelle \& Loik Galtier \& Raphael Ribes 
+\vspace{5mm} \\
+\textbf{\large Professeure :\\} \large Annie Chateau
+\rule{\linewidth}{0.3 mm} \\[0.5 cm]
+%---------------------------------------
+% GENERATION DE L'ABSTRACT % 
+%---------------------------------------%
+
+\selectlanguage{french}
+\begin{abstract}
+blabla
+\end{abstract}
+\vspace{5mm}
+
+\end{titlepage}
