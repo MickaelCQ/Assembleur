@@ -16,6 +16,16 @@ cmd = "cmake --build build"
 description = "Build the C++ project using CMake"
 depends-on = ["_preparedir", "_configure"]
 
+[tasks.test]
+cmd = "./build/run_tests"
+description = "Run the test suite"
+
+[tasks.tofasta]
+args = [
+    { "arg" = "input", "default" = "Tests_Et_Ref/reads.fastq.fq" },
+    { "arg" = "output", "default" = "Tests_Et_Ref/reads.fasta" }]
+cmd = "sed ':a;N;$!ba;s/+\\n/+/g' {{ input }} | grep -v \"^+\" | sed \"s/@/>/g\" > {{ output }}"
+
 [dependencies]
 cmake = ">=4.1.2,<5"
 gtest = ">=1.17.0,<2"
