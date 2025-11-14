@@ -70,7 +70,12 @@ TEST(ConvertLoadTest, LoadsRealFastaFile) {
     Convert converter;
 
     // Path relative to the build directory where 'run_tests' is executed
-    std::string real_fasta_path = "/home/raphael/Assembleur/Tests_Et_Ref/minia.contigs.fa";
+#ifndef TEST_DATA_DIR
+    // Fallback if macro not defined
+    std::string real_fasta_path = "Tests_Et_Ref/minia.contigs.fa";
+#else
+    std::string real_fasta_path = std::string(TEST_DATA_DIR) + "/minia.contigs.fa";
+#endif
 
     // Check if file exists before trying to open, to give a better error
     std::ifstream f(real_fasta_path);
@@ -92,3 +97,4 @@ TEST(ConvertLoadTest, LoadsRealFastaFile) {
     // The size of the full bit vector should be equal to the last end position
     EXPECT_EQ(bit_vec.size(), end_pos.back());
 }
+

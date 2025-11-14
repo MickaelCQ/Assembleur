@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(assembler_lib
         src/compare.cpp
         src/convert.cpp  # <-- ADDED THIS LINE
+        src/bitvector.cpp
 )
 
 # 2. Tell the library where to find its own headers
@@ -30,19 +31,24 @@ target_link_libraries(assembler_app PRIVATE assembler_lib)
 # 5. Enable testing for the project
 enable_testing()
 
-# 6. Find the GoogleTest package
-# You may need to install this (e.g., sudo apt-get install libgtest-dev)
-find_package(GTest REQUIRED)
+# 6. Use FetchContent to obtain GoogleTest if not available
+include(FetchContent)
+
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/refs/heads/main.zip
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(googletest)
 
 # 7. Create a new directory for test files
-# This command is not strictly needed, but assumes you created tests/
 file(GLOB TEST_FILES "tests/*.cpp")
 
 # 8. Add the test executable
 add_executable(run_tests
         ${TEST_FILES}
-        tests/test_convert.cpp
-        tests/test_compare.cpp
 )
 
 # 9. Link the test executable against GTest and your assembler library
@@ -51,6 +57,9 @@ target_link_libraries(run_tests PRIVATE
         GTest::gtest      # <-- Link to GTest
         GTest::gtest_main # <-- Link to GTest main
 )
+
+# Define macro with path to test data directory so tests can find files reliably
+target_compile_definitions(run_tests PRIVATE TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/Tests_Et_Ref")
 
 # 10. Add your test to CTest
 include(GoogleTest)
