@@ -7,6 +7,9 @@
 #include <stdexcept>
 #include <vector>
 #include <fstream> // NOUVEAU: Pour l'exportation de fichiers (std::ofstream)
+#include <bitset>
+
+
 
 #include "convert.h"   // Notre classe pour lire le FASTA
 #include "compare.h" // Notre classe pour comparer les k-mers

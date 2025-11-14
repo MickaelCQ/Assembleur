@@ -20,6 +20,7 @@ void Convert::process_fasta_file(const std::string& filename) {
     // Clear any previous data
     bit_vector.clear();
     read_end_positions.clear();
+    _cache_valid = false;
 
     size_t total_read_size = 0;
     size_t total_read_number = 0;
@@ -87,64 +88,26 @@ void Convert::process_fasta_file(const std::string& filename) {
     file.close();
 }
 
-/**
- * @brief (Private Helper) Converts a single DNA sequence string and appends it to the bit vector.
- *
- * This helper function iterates through the sequence, converts each nucleotide
- * to two bits, and appends them to the main `bit_vector`. It then records
- * the new total size of `bit_vector` in `read_end_positions`.
- *
- * This function assumes `bit_vector` has already been reserved.
- */
 void Convert::convert_and_store_sequence(const std::string& sequence) {
     if (sequence.empty()) {
         return;
     }
 
-    // NOTE: We no longer call bit_vector.reserve() here,
-    // as it was done in process_fasta_file().
-
     for (char nucleotide : sequence) {
-        // Handle both upper and lower case
-        switch (toupper(nucleotide)) {
-            case 'A':
-                bit_vector.push_back(false); // 0
-                bit_vector.push_back(false); // 0
-                break;
-            case 'C':
-                bit_vector.push_back(true);  // 1
-                bit_vector.push_back(false); // 0
-                break;
-            case 'G':
-                bit_vector.push_back(false); // 0
-                bit_vector.push_back(true);  // 1
-                break;
-            case 'T':
-                bit_vector.push_back(true);  // 1
-                bit_vector.push_back(true);  // 1
-                break;
-            default:
-                // Handle N or other non-standard characters.
-                // We will treat them as 'A' (00) for this example,
-                // but you can skip them or throw an error.
-                // Skipping them would misalign the bit vector and read positions.
-                // Let's treat them as 'A' (00) to maintain sequence length.
-                if (nucleotide != '\n' && nucleotide != '\r') {
-                     std::cerr << "Warning: Unhandled character '" << nucleotide << "'. Treating as 'A'." << std::endl;
-                }
-                bit_vector.push_back(false); // 0
-                bit_vector.push_back(false); // 0
-                break;
-        }
+        bit_vector.addCha(nucleotide);
     }
 
     // Store the *new* cumulative size of the bit vector
-    // This marks the end position of the read we just added.
     read_end_positions.push_back(bit_vector.size());
+    _cache_valid = false;
 }
 
 const std::vector<bool>& Convert::get_bit_vector() const {
-    return bit_vector;
+    if (!_cache_valid) {
+        _bit_vec_cache = bit_vector.to_vector();
+        _cache_valid = true;
+    }
+    return _bit_vec_cache;
 }
 
 const std::vector<size_t>& Convert::get_read_end_positions() const {

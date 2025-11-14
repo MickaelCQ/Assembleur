@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>      // For uint8_t
+#include "bitvector.h"
 
 /**
  * @class Convert
@@ -25,8 +26,12 @@
 class Convert
 {
 private:
-    std::vector<bool> bit_vector;
+    BitVector bit_vector;
     std::vector<size_t> read_end_positions;
+
+    // Cache to satisfy API returning const std::vector<bool>&
+    mutable std::vector<bool> _bit_vec_cache;
+    mutable bool _cache_valid = false;
 
     /**
      * @brief Converts a single DNA sequence string and appends it to the bit vector.
