@@ -1,21 +1,26 @@
 //
 // Created by raphael on 11/13/25.
-//
+// Additions to understanding and reflections on our programming choices 14/11/2025.
 
-#include <iostream>
+#include <iostream> // Indispensable pr communiquer avec l'utilisateur.
 #include <string>
-#include <stdexcept>
-#include <vector>
+#include <stdexcept> // pour avoir des erreurs "propres", les exceptions standards...
+#include <vector>   // La structure de base retrouvée dans le stockage de nos données. (bit vector \& matrice ..)
 #include <fstream> // NOUVEAU: Pour l'exportation de fichiers (std::ofstream)
 #include <bitset>
 
 
 
 #include "convert.h"   // Notre classe pour lire le FASTA
-#include "compare.h" // Notre classe pour comparer les k-mers
+#include "compare.h" // Notre classe pour comparer les k-mers (issus du FASTA).
 
 /**
  * @brief Imprime la matrice de comparaison de manière lisible.
+ * La fonction sera utilisée pour des matrices de taille raisonnable, considérant que l'objectif étant un affichage de confivialité mais pas d'inonder la console avec des milliers de lignes de code.
+ * @param matrix Matrice qui contient nos valeurs de comparaison.
+ * 
+ * @complexity Temps: O(n*m) affichage de la matrice.
+ * @complexity Espace: O(1) a priori pas d'allocation mémoire notable pr l'affichage dans le terminal. 	
  */
 void print_matrix(const std::vector<std::vector<size_t>>& matrix) {
     if (matrix.empty()) {
@@ -23,10 +28,10 @@ void print_matrix(const std::vector<std::vector<size_t>>& matrix) {
         return;
     }
 
-    // Imprimer l'en-tête (index des colonnes)
+    // Imprimer l'en-tête (index des colonnes) : nous avons choisi cet affichage pour faciliter la lecture.
     std::cout << "      ";
     for (size_t j = 0; j < matrix[0].size(); ++j) {
-        std::cout << "[" << j << "]\t";
+        std::cout << "[" << j << "]\t"; // Avec des tab on garantit un alignement convenable. 
     }
     std::cout << std::endl << "------";
     for (size_t j = 0; j < matrix[0].size(); ++j) {
@@ -36,9 +41,9 @@ void print_matrix(const std::vector<std::vector<size_t>>& matrix) {
 
     // Imprimer les lignes
     for (size_t i = 0; i < matrix.size(); ++i) {
-        std::cout << "[" << i << "] | ";
+        std::cout << "[" << i << "] | "; // Rappel de l'indice du read.
         for (size_t j = 0; j < matrix[i].size(); ++j) {
-            std::cout << matrix[i][j] << "\t";
+            std::cout << matrix[i][j] << "\t"; // La valeur affichée représente notre nombre de kmers paratagés.
         }
         std::cout << std::endl;
     }
@@ -46,18 +51,24 @@ void print_matrix(const std::vector<std::vector<size_t>>& matrix) {
 
 // NOUVEAU: Fonction pour exporter la matrice vers un fichier TSV
 /**
- * @brief Exporte une matrice 2D vers un fichier TSV (Tab-Separated Values).
+ * @brief Exporte une matrice 2D vers un fichier TSV (Tab-Separated Values). 
+ * Nous avons choisi un format tsv car c'est à la fois simple à parser (dans R, Python...), on évite les pièges des CSV. Puis c'est compatible avec une majorité des pipelines courants.
+ * Si on s'inscrit dans une logique d'intégration de l'outil (au dela du cadre pédagogique).
  * @param matrix La matrice de données à exporter.
- * @param filename Le nom du fichier de sortie.
- * @throws std::runtime_error si le fichier ne peut pas être ouvert.
+ * @param filename Le path du fichier de sortie.
+ * @throws std::runtime_error si l'ouverture du fichier échoue.
+ * @complexity Temps: 0(n*m) , chaque cellule écrite une fois.
+ * @complexity Espace:O(1), vu qu'on à une écriture en flux, à priori pas d'usage énorme du buffer...(à vérifier par loik).
  */
 void export_matrix_to_tsv(const std::vector<std::vector<size_t>>& matrix, const std::string& filename) {
     std::ofstream file(filename);
+    //Vérification(s) d'usage(s) pour éviter les comportements silencieux difficiles à diagnostiquer. 
     if (!file.is_open()) {
         throw std::runtime_error("Erreur: Impossible d'ouvrir le fichier de sortie " + filename);
     }
-
-    // Pas d'en-tête pour une matrice simple, écriture directe des données.
+	// MICKAEL : A mon sens faut qu'on en rajoute ...
+    
+    // Pas d'en-tête pour une matrice simple, écriture directe des données, forme "Val\tVal\tVal.."
     for (size_t i = 0; i < matrix.size(); ++i) {
         for (size_t j = 0; j < matrix[i].size(); ++j) {
             file << matrix[i][j];
@@ -66,14 +77,20 @@ void export_matrix_to_tsv(const std::vector<std::vector<size_t>>& matrix, const 
                 file << "\t";
             }
         }
-        // Nouvelle ligne à la fin de chaque ligne de la matrice
         file << "\n";
     }
 
-    file.close();
+    file.close();// Fermeture explicite toujours plus propre pour les gros fichiers. 
 }
 
 
+
+/**@brief
+
+ *complexity Temps: (A compléter à la fin) 
+ *complexity Temps: (A compléter à la fin)
+
+*/
 int main(int argc, char* argv[]) {
     // --- 1. Vérifier les arguments ---
     // MODIFIÉ: Attend 3 arguments (exécutable, entrée, sortie)
