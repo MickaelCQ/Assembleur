@@ -3,3 +3,4 @@
 !.pixi/config.toml
 build
 .idea
+cmake-build-debug
