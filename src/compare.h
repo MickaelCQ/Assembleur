@@ -33,7 +33,7 @@ struct CompareKMers {
     BitVector& get_bitVector();
     std::vector<size_t>& get_reads();
     size_t get_read_end_pos(size_t read_idx) const;
-    size_t get_n_kmers(size_t ref_read_idx) const;
+    size_t get_nKmers(size_t ref_read_idx) const;
     size_t get_all_nKmers() const;
     size_t get_nReads() const;
 

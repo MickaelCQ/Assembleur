@@ -33,7 +33,7 @@ private:
      * @brief Converts a single DNA sequence string and appends it to the bit vector.
      * @param sequence The DNA sequence string (e.g., "ACGT").
      */
-    void convert_and_store_sequence(const std::string& sequence);
+    void convertSeq(const std::string& sequence);
 
 public:
     /**

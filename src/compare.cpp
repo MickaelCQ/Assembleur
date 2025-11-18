@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <utility> // Pour std::move
 
-// CHANGEMENT: Accepte BitVector
+// doit prendre une reference de 
 CompareKMers::CompareKMers(BitVector bitVector, std::vector<size_t> reads, size_t kmersize)
     : bitVector(std::move(bitVector)), reads(std::move(reads)), kmersize(kmersize) {}
 
@@ -45,7 +45,7 @@ size_t CompareKMers::get_read_end_pos(const size_t read_idx) const
     return reads[read_idx];
 }
 
-size_t CompareKMers::get_n_kmers(const size_t ref_read_idx) const {
+size_t CompareKMers::get_nKmers(const size_t ref_read_idx) const {
     // CORRECTION: La position de début est 0 pour la première lecture, ou la fin de la précédente.
     const size_t start_bit = (ref_read_idx == 0) ? 0 : get_read_end_pos(ref_read_idx - 1);
     const size_t end_bit = get_read_end_pos(ref_read_idx);
@@ -67,7 +67,7 @@ size_t CompareKMers::get_all_nKmers() const {
     // La nouvelle somme le nombre de k-mers de chaque lecture.
     size_t total_kmers = 0;
     for (size_t i = 0; i < get_nReads(); ++i) {
-        total_kmers += get_n_kmers(i);
+        total_kmers += get_nKmers(i);
     }
     return total_kmers;
 }
@@ -121,7 +121,7 @@ std::vector<size_t> CompareKMers::compare_lines(const size_t ref_read_idx) const
         const size_t other_kmer_start_bit = (i == 0) ? 0 : reads[i - 1];
 
         // Note: Une implémentation robuste vérifierait ici que les deux lectures
-        // ont une taille >= kmersize en utilisant get_n_kmers(i) > 0.
+        // ont une taille >= kmersize en utilisant get_nKmers(i) > 0.
 
         size_t cmp_result = compare_line(ref_kmer_start_bit, other_kmer_start_bit);
         results.push_back(cmp_result);

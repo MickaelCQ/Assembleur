@@ -64,7 +64,7 @@ void Convert::processFile(const std::string& filename) {
             // Process the sequence we've built up so far.
             std::string sequence = current_sequence_stream.str();
             if (!sequence.empty()) {
-                convert_and_store_sequence(sequence);
+                convertSeq(sequence);
             }
 
             // Reset the stream for the new sequence
@@ -81,13 +81,13 @@ void Convert::processFile(const std::string& filename) {
     // After the loop, process the very last sequence in the file
     std::string last_sequence = current_sequence_stream.str();
     if (!last_sequence.empty()) {
-        convert_and_store_sequence(last_sequence);
+        convertSeq(last_sequence);
     }
 
     file.close();
 }
 
-void Convert::convert_and_store_sequence(const std::string& sequence) {
+void Convert::convertSeq(const std::string& sequence) {
     if (sequence.empty()) {
         return;
     }

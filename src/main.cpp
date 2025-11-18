@@ -12,7 +12,7 @@
 
 
 #include "convert.h"   // Notre classe pour lire le FASTA
-#include "compare.h" // Notre classe pour comparer les k-mers (issus du FASTA).
+#include "compare.h" // Notre classe pour comparator les k-mers (issus du FASTA).
 
 /**
  * @brief Imprime la matrice de comparaison de manière lisible.
@@ -126,11 +126,11 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    CompareKMers comparer(bitVector_ref, std::move(read_ends), KMER_SIZE);
+    CompareKMers comparator(bitVector_ref, std::move(read_ends), KMER_SIZE);
 
     // --- 4. Afficher les résultats ---
-    size_t total_reads = comparer.get_nReads();
-    size_t total_kmers = comparer.get_all_nKmers();
+    size_t total_reads = comparator.get_nReads();
+    size_t total_kmers = comparator.get_all_nKmers();
 
     std::cout << "-----------------------------------" << std::endl;
     std::cout << "Statistiques :" << std::endl;
@@ -141,7 +141,7 @@ int main(int argc, char* argv[]) {
     // MODIFIÉ: Logique de génération et d'exportation
     if (total_reads > 0) {
         std::cout << "Generation de la matrice de comparaison..." << std::endl;
-        std::vector<std::vector<size_t>> comparison_matrix = comparer.compare_all();
+        std::vector<std::vector<size_t>> comparison_matrix = comparator.compare_all();
 
         // NOUVEAU: Exporter la matrice vers le fichier TSV
         std::cout << "Exportation de la matrice vers " << output_filename << "..." << std::endl;
@@ -162,7 +162,7 @@ int main(int argc, char* argv[]) {
         }
 
     } else {
-        std::cout << "Aucune lecture a comparer, aucun fichier TSV genere." << std::endl;
+        std::cout << "Aucune lecture a comparator, aucun fichier TSV genere." << std::endl;
     }
 
     return 0;
