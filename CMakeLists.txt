@@ -1,17 +1,21 @@
-cmake_minimum_required(VERSION 3.14)
-project(GenomeAssembler)
+# Add the minimum required CMake version at the very top
+cmake_minimum_required(VERSION 3.10)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+project(GenomeAssembler)
 
 # 1. Create a library from your source code
 add_library(assembler_lib
         src/compare.cpp
         src/convert.cpp
         src/bitvector.cpp
-        src/graphdbj.cpp  # <--- AJOUT ESSENTIEL : Compile le fichier source du graphe
+        src/graphdbj.cpp
 )
+
+# Move definitions to after target creation
+target_compile_definitions(assembler_lib PUBLIC -D_GLIBCXX_USE_CXX11_ABI=1)
 
 # 2. Tell the library where to find its own headers
 target_include_directories(assembler_lib PUBLIC src)
@@ -20,6 +24,9 @@ target_include_directories(assembler_lib PUBLIC src)
 add_executable(assembler_app
         src/main.cpp
 )
+
+# Move definitions to after target creation
+target_compile_definitions(assembler_app PRIVATE -D_GLIBCXX_USE_CXX11_ABI=1)
 
 # 4. Link your main app against your library
 target_link_libraries(assembler_app PRIVATE assembler_lib)

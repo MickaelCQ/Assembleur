@@ -159,26 +159,40 @@ int main(int argc, char* argv[]) {
 
     // MODIFIÉ: Logique de génération et d'exportation
     if (total_reads > 0) {
-        std::cout << "Generation de la matrice de comparaison..." << std::endl;
-        std::vector<std::vector<size_t>> comparison_matrix = comparator.compare_all();
+        // --- Construction du Graphe de De Bruijn ---
+        std::cout << "Construction du graphe de Bruijn..." << std::endl;
+        GraphDBJ graph(converter, KMER_SIZE);
 
-        // NOUVEAU: Exporter la matrice vers le fichier TSV
-        std::cout << "Exportation de la matrice vers " << output_filename << "..." << std::endl;
-        try {
-            export_matrix_to_tsv(comparison_matrix, output_filename);
-            std::cout << "Exportation terminee." << std::endl;
-        } catch (const std::runtime_error& e) {
-            std::cerr << "Erreur lors de l'exportation: " << e.what() << std::endl;
-        }
+        // --- SIMPLIFICATION DU GRAPHE ---
+        // 1. Elagage des pointes
+        graph.removeTips(KMER_SIZE - 1);
 
-        // NOUVEAU: N'imprimer la matrice dans la console que si elle est petite
-        if (total_reads > 50) {
-            std::cout << "Matrice trop grande pour l'affichage console (>50 lectures)." << std::endl;
-            std::cout << "Les resultats ont ete enregistres dans " << output_filename << std::endl;
-        } else {
-            std::cout << "Matrice de resultats (Lecture[i] vs Lecture[j]):" << std::endl;
-            print_matrix(comparison_matrix);
+        // 2. Resolution des bulles (utilisez la version avancée si vous l'avez implémentée)
+        graph.resolveBubbles();
+
+        // --- GENERATION DE L'ASSEMBLAGE FINAL ---
+        std::cout << "Generation des Contigs (Extension par couverture)..." << std::endl;
+
+        // On utilise generateContigs AU LIEU DE generateUnitigs
+        std::vector<std::string> contigs = graph.generateContigs();
+
+        std::cout << "Nombre de contigs generes : " << contigs.size() << std::endl;
+
+        // Export
+        std::string contig_filename = output_filename + ".contigs.fasta";
+        std::ofstream out_contigs(contig_filename);
+
+        // On ne garde souvent que les contigs d'une certaine taille (ex: > 100bp)
+        int contigs_exported = 0;
+        for (size_t i = 0; i < contigs.size(); ++i) {
+            if (contigs[i].length() >= (size_t)KMER_SIZE * 2) { // Filtre simple
+                out_contigs << ">contig_" << i << "_len_" << contigs[i].length() << "\n";
+                out_contigs << contigs[i] << "\n";
+                contigs_exported++;
+            }
         }
+        out_contigs.close();
+        std::cout << "Contigs exportes : " << contigs_exported << " (filtres par taille)" << std::endl;
 
     } else {
         std::cout << "Aucune lecture a comparator, aucun fichier TSV genere." << std::endl;

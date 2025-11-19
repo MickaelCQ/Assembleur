@@ -23,7 +23,7 @@ description = "Run the test suite"
 [tasks.start]
 args = [
     { "arg" = "file", "default" = "./Tests_Et_Ref/reads.fasta" },
-    { "arg" = "output_tsv", "default" = "./output.tsv" },
+    { "arg" = "output_tsv", "default" = "reads" },
 ]
 cmd = "./build/assembler_app {{ file }} {{ output_tsv }}"
 description = "Run the app"
