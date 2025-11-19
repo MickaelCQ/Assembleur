@@ -1,4 +1,6 @@
 #include "graphdbj.h"
+
+#include <complex>
 #include <iostream>
 #include <stdexcept>
 
@@ -280,7 +282,7 @@ std::string GraphDBJ::kmerToString(uint64_t val, int length) const {
     for (int i = length - 1; i >= 0; --i) {
         uint64_t mask = 3ULL << (i * 2);
         uint64_t two_bits = (val & mask) >> (i * 2);
-
+std::
         // Correspondance inverse à celle définie dans addCha()
         if (two_bits == 0) seq += 'A';       // 00
         else if (two_bits == 2) seq += 'C';  // 10
