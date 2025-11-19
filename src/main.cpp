@@ -154,9 +154,10 @@ int main(int argc, char* argv[]) {
         std::vector<std::string> contigs = graph.generateContigs();
         std::cout << "Nombre de contigs bruts : " << contigs.size() << std::endl;
 
-        // --- ETAPE DE CONSENSUS ---
-        // On demande un overlap minimum de 'k' nucléotides pour être sûr
-        contigs = GraphDBJ::mergeContigs(contigs, KMER_SIZE);
+        int min_overlap = 15;
+
+        std::cout << "Fusion avec chevauchement min : " << min_overlap << std::endl;
+        contigs = GraphDBJ::mergeContigs(contigs, min_overlap);
 
         std::cout << "Nombre de contigs apres fusion et nettoyage : " << contigs.size() << std::endl;
 

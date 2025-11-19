@@ -6,92 +6,150 @@
 #include <fstream>
 #include <algorithm>
 
-// Fonction utilitaire pour calculer le chevauchement max entre la fin de s1 et le début de s2
+// Remplacez la fonction calculateOverlap existante par celle-ci :
+
 int calculateOverlap(const std::string& s1, const std::string& s2, int min_len) {
     int max_ov = 0;
-    // On ne teste pas tout, on limite la zone de recherche pour la performance
     int limit = std::min(s1.length(), s2.length());
 
-    for (int len = min_len; len < limit; ++len) {
-        // Vérifie si le suffixe de s1 de taille 'len' est égal au préfixe de s2
-        if (s1.compare(s1.length() - len, len, s2, 0, len) == 0) {
+    // On teste toutes les longueurs de chevauchement possibles
+    for (int len = min_len; len <= limit; ++len) {
+
+        // Optimisation rapide : on vérifie d'abord les extrémités
+        // Si le premier et le dernier char ne correspondent pas, on passe (sauf si on veut être ultra-permissif)
+        // On commente cette optimisation pour être sûr d'attraper les cas avec erreurs aux bords.
+        // if (s1[s1.length() - len] != s2[0]) continue;
+
+        int mismatches = 0;
+        // TOLÉRANCE : On autorise 1 erreur tous les 30 nucléotides (~3% de divergence)
+        // + 2 erreurs gratuites pour gérer les extrémités bruitées
+        int allowed_errors = 2 + (len / 30);
+
+        bool match = true;
+
+        // Comparaison caractère par caractère avec compteur d'erreurs
+        for (int i = 0; i < len; ++i) {
+            // Comparaison du Suffixe de s1 avec le Préfixe de s2
+            if (s1[s1.length() - len + i] != s2[i]) {
+                mismatches++;
+                if (mismatches > allowed_errors) {
+                    match = false;
+                    break;
+                }
+            }
+        }
+
+        if (match) {
             max_ov = len;
+            // Pas de break ici : on continue pour voir si un chevauchement plus grand existe
         }
     }
     return max_ov;
 }
 
+char complement(char c) {
+    switch(c) {
+    case 'A': return 'T';
+    case 'T': return 'A';
+    case 'C': return 'G';
+    case 'G': return 'C';
+    default: return c;
+    }
+}
+
+std::string getStringReverseComplement(const std::string& seq) {
+    std::string rc = "";
+    rc.reserve(seq.length());
+    // Parcours inversé + complément
+    for (int i = seq.length() - 1; i >= 0; --i) {
+        rc += complement(seq[i]);
+    }
+    return rc;
+}
+
 std::vector<std::string> GraphDBJ::mergeContigs(std::vector<std::string> contigs, int min_overlap) {
-    std::cout << "--- Post-traitement : Fusion des Contigs (Consensus) ---" << std::endl;
+    std::cout << "--- Post-traitement : Fusion des Contigs (Consensus + Reverse Complement) ---" << std::endl;
 
-    bool changed = true;
-    while (changed) {
-        changed = false;
-        std::vector<std::string> next_pass;
-        std::vector<bool> merged(contigs.size(), false);
+    // Tri : les plus longs d'abord pour servir d'ancres
+    std::sort(contigs.begin(), contigs.end(), [](const std::string& a, const std::string& b) {
+        return a.length() > b.length();
+    });
 
-        // Tri par taille décroissante : on veut garder les gros morceaux comme base
-        std::sort(contigs.begin(), contigs.end(), [](const std::string& a, const std::string& b) {
-            return a.length() > b.length();
-        });
+    bool global_change = true;
+    while (global_change) {
+        global_change = false;
+        std::vector<bool> absorbed(contigs.size(), false);
 
         for (size_t i = 0; i < contigs.size(); ++i) {
-            if (merged[i]) continue;
+            if (absorbed[i]) continue;
 
-            std::string current = contigs[i];
-            bool merged_current = false;
+            bool local_change = true;
+            while (local_change) {
+                local_change = false;
 
-            for (size_t j = 0; j < contigs.size(); ++j) {
-                if (i == j || merged[j]) continue;
+                for (size_t j = 0; j < contigs.size(); ++j) {
+                    if (i == j || absorbed[j]) continue;
 
-                // 1. INCLUSION : Si contigs[j] est DANS current, on supprime contigs[j]
-                if (current.find(contigs[j]) != std::string::npos) {
-                    merged[j] = true; // J est absorbé par I
-                    changed = true;
-                    continue;
+                    std::string& master = contigs[i];
+                    // On travaille sur une copie pour tester le Reverse Complement si besoin
+                    std::string candidate = contigs[j];
+                    bool merged = false;
+
+                    // --- TENTATIVE 1 : Orientation Standard ---
+
+                    // Inclusion
+                    if (master.find(candidate) != std::string::npos) {
+                        merged = true;
+                    }
+                    // Overlap Droite (Master -> Candidate)
+                    else if (int ov = calculateOverlap(master, candidate, min_overlap); ov > 0) {
+                        master += candidate.substr(ov);
+                        merged = true;
+                    }
+                    // Overlap Gauche (Candidate -> Master)
+                    else if (int ov = calculateOverlap(candidate, master, min_overlap); ov > 0) {
+                        master = candidate + master.substr(ov);
+                        merged = true;
+                    }
+
+                    // --- TENTATIVE 2 : Orientation Inverse (Si pas fusionné) ---
+                    if (!merged) {
+                        std::string candRC = getStringReverseComplement(candidate);
+
+                        if (master.find(candRC) != std::string::npos) {
+                            merged = true;
+                        }
+                        else if (int ov = calculateOverlap(master, candRC, min_overlap); ov > 0) {
+                            master += candRC.substr(ov);
+                            merged = true;
+                        }
+                        else if (int ov = calculateOverlap(candRC, master, min_overlap); ov > 0) {
+                            master = candRC + master.substr(ov);
+                            merged = true;
+                        }
+                    }
+
+                    if (merged) {
+                        absorbed[j] = true;
+                        local_change = true;
+                        global_change = true;
+                        // Master a grossi, on relance la recherche j pour voir s'il peut manger autre chose
+                        break;
+                    }
                 }
-
-                // 2. FUSION (Overlap)
-                // Cas A : Fin de CURRENT chevauche Début de J
-                int ov_right = calculateOverlap(current, contigs[j], min_overlap);
-                if (ov_right > 0) {
-                    // Fusion : Current + (J sans le chevauchement)
-                    current += contigs[j].substr(ov_right);
-                    merged[j] = true;
-                    merged_current = true;
-                    changed = true;
-                    // On recommence la boucle avec le nouveau 'current' agrandi
-                    i--; // Astuce pour re-traiter 'current' au prochain tour de i
-                    break;
-                }
-
-                // Cas B : Fin de J chevauche Début de CURRENT
-                int ov_left = calculateOverlap(contigs[j], current, min_overlap);
-                if (ov_left > 0) {
-                    // Fusion : J + (Current sans le chevauchement)
-                    current = contigs[j] + current.substr(ov_left);
-                    merged[j] = true;
-                    merged_current = true;
-                    changed = true;
-                    i--;
-                    break;
-                }
-            }
-
-            if (!merged_current && !merged[i]) {
-                next_pass.push_back(current);
-            } else if (merged_current) {
-                // Si on a fusionné, on ajoute le résultat (qui est dans 'current')
-                // Note: si on a fait i--, on ne l'ajoute pas tout de suite, mais ici on simplifie la logique
-                // Dans cette version simple, on ajoute le merged et on relance le while(changed)
-                next_pass.push_back(current);
-                merged[i] = true;
             }
         }
-        contigs = next_pass;
-        if(changed) std::cout << "Cycle de fusion termine. Contigs restants : " << contigs.size() << std::endl;
-    }
 
+        // Nettoyage
+        if (global_change) {
+            std::vector<std::string> next_pass;
+            for (size_t k = 0; k < contigs.size(); ++k) {
+                if (!absorbed[k]) next_pass.push_back(contigs[k]);
+            }
+            contigs = next_pass;
+            std::cout << "Cycle termine. Contigs restants : " << contigs.size() << std::endl;
+        }
+    }
     return contigs;
 }
 
@@ -507,16 +565,19 @@ std::vector<std::string> GraphDBJ::generateContigs() const {
     std::vector<std::string> contigs;
     std::unordered_map<Noeud*, bool> visited;
 
-    // Seuil heuristique : si un chemin est 5x plus couvert que l'autre, on le suit.
-    // Je pense que ça on pourrait le mettre en option, faudrait le tester
+    // Seuil heuristique :
     const double COVERAGE_RATIO = 1.0;
+
+    // Sécurité pour éviter les boucles infinies si le graphe contient des cycles non résolus
+    const size_t MAX_CONTIG_LEN = 1000000;
 
     for (const auto& pair : nodes_map) {
         Noeud* startNode = pair.second;
+
+        // Si le noeud est déjà utilisé ou marqué supprimé, on passe
         if (startNode->removed || visited[startNode]) continue;
 
-        // On cherche un point de départ valide pour un contig :
-        // Soit un début absolu (pas de parents), soit une jonction complexe non résolue.
+        // On cherche un point de départ valide (Début absolu OU Jonction)
         if (startNode->parents.empty() || startNode->parents.size() > 1) {
 
             std::string seq = kmerToString(startNode->p, k - 1);
@@ -524,14 +585,19 @@ std::vector<std::string> GraphDBJ::generateContigs() const {
             Noeud* curr = startNode;
 
             // Extension gloutonne du contig
-            while (true) {
+            size_t sanity_check = 0;
+
+            while (sanity_check < MAX_CONTIG_LEN) {
+                sanity_check++;
                 Noeud* next = nullptr;
 
-                // CAS 1 : Chemin linéaire simple (1 seul enfant) -> On avance
+                // --- CHOIX DU PROCHAIN NOEUD ---
+
+                // CAS 1 : Chemin linéaire simple
                 if (curr->c.size() == 1) {
                     next = curr->c[0];
                 }
-                // CAS 2 : Bifurcation (Plusieurs enfants) -> On utilise la couverture
+                // CAS 2 : Bifurcation -> Heuristique de couverture
                 else if (curr->c.size() > 1) {
                     Noeud* best_candidate = nullptr;
                     uint32_t max_cov = 0;
@@ -548,30 +614,40 @@ std::vector<std::string> GraphDBJ::generateContigs() const {
                         }
                     }
 
-                    // Si le meilleur candidat domine largement le deuxième (ratio > 5)
+                    // On ne suit que si le meilleur candidat se démarque suffisamment
                     if (best_candidate != nullptr && max_cov > (second_max_cov * COVERAGE_RATIO)) {
                         next = best_candidate;
                     } else {
-                        // Ambiguïté trop forte (ex: répétition 50/50), on arrête le contig ici.
-                        break;
+                        break; // Ambiguïté -> Fin du contig
                     }
                 } else {
-                    // 0 enfants, fin du chemin
+                    break; // Cul-de-sac -> Fin du contig
+                }
+
+                // --- LOGIQUE D'EXTENSION ET D'ARRÊT ---
+
+                // 1. Si pas de suite valide, on arrête
+                if (next == nullptr || next->removed) break;
+
+                // 2. CALCUL DU NUCLÉOTIDE (CRITIQUE : On le fait AVANT le break visited)
+                uint64_t val = next->p;
+                uint64_t last_nuc_val = val & 3ULL;
+
+                // Conversion optimisée 2 bits -> char
+                // 'A'=00(0), 'C'=10(2), 'G'=01(1), 'T'=11(3)
+                char c = "ACGT"[last_nuc_val == 2 ? 1 : (last_nuc_val == 1 ? 2 : (last_nuc_val == 3 ? 3 : 0))];
+
+                // 3. AJOUT À LA SÉQUENCE
+                seq += c;
+
+                // 4. VÉRIFICATION DE VISITE (C'est ici que ça change tout)
+                // Si le noeud 'next' appartient déjà à un autre contig (ou à celui-ci via une boucle),
+                // on a quand même ajouté son nucléotide ci-dessus. Cela crée le chevauchement nécessaire.
+                if (visited[next]) {
                     break;
                 }
 
-                // Vérifications de sécurité
-                if (next == nullptr || next->removed || visited[next]) break;
-
-                // Ajouter le dernier nucléotide du nœud suivant à la séquence
-                uint64_t val = next->p;
-                uint64_t last_nuc_val = val & 3ULL; // Masque pour récupérer les 2 derniers bits
-
-                // Conversion 2 bits -> char (hack efficace via table de correspondance implicite)
-                // 'A'=00, 'C'=10, 'G'=01, 'T'=11
-                char c = "ACGT"[last_nuc_val == 2 ? 1 : (last_nuc_val == 1 ? 2 : (last_nuc_val == 3 ? 3 : 0))];
-
-                seq += c;
+                // 5. AVANCE
                 visited[next] = true;
                 curr = next;
             }
