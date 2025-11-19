@@ -40,8 +40,12 @@ private:
     std::unordered_map<uint64_t, Noeud*> nodes_map;
 
     /**
-     * @brief Extrait une sous-chaîne de bits du BitVector et la convertit en uint64_t.
+     * @brief Calcule le complément inverse d'un k-mer encodé.
+     * Exemple (si k=2): AC (00 10) -> GT (01 11).
      */
+    uint64_t getReverseComplement(uint64_t val, int k) const;
+
+    // ... suite de vos fonctions existantes ...
     uint64_t extractKmerValue(const BitVector& bv, size_t start_bit_idx, int len_nucleotides) const;
 
     // --- Méthodes utilitaires ---
@@ -78,20 +82,29 @@ public:
 
     /**
      * @brief Élagage des pointes (Tip Clipping) : Supprime les courtes branches mortes (souvent erreurs de séquençage en fin de lecture).
-     * @param length_threshold Longueur max d'une pointe pour être supprimée.
      */
-    void removeTips(int length_threshold);
+    int clipTips();
 
     /**
      * @brief Résolution des bulles (Bubble Collapsing) : Fusionne les chemins similaires causés par des SNP ou erreurs.
      */
-    void resolveBubbles();
+    int resolveBubbles();
 
     /**
      * @brief Génération de Contigs : Parcourt le graphe simplifié pour sortir les séquences assemblées.
      * Utilise des heuristiques de couverture pour résoudre les ambiguïtés.
      */
     std::vector<std::string> generateContigs() const;
+
+    // Ajoutez cette déclaration dans la section public de GraphDBJ
+    void exportToGFA(const std::string& filename) const;
+
+    /**
+     * @brief Fusionne les contigs qui se chevauchent et supprime les doublons/inclusions.
+     * @param contigs Liste brute des contigs.
+     * @param min_overlap Taille minimale du chevauchement pour fusionner (ex: k).
+     */
+    static std::vector<std::string> mergeContigs(std::vector<std::string> contigs, int min_overlap);
 };
 
 #endif //ASSEMBLEUR_GRAPHDBJ_H

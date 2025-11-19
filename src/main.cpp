@@ -122,18 +122,43 @@ int main(int argc, char* argv[]) {
         auto nodes = graph.getNodes();
         std::cout << "Graphe construit. Noeuds uniques (k-1 mers) : " << nodes.size() << std::endl;
 
-        // --- 5. Simplification du Graphe ---
-        // A. Élagage des pointes (suppression des erreurs de séquençage aux extrémités)
-        graph.removeTips(KMER_SIZE - 1);
+        // --- 5. Simplification du Graphe (Boucle Itérative) ---
+        std::cout << "--- Debut de la simplification iterative ---" << std::endl;
 
-        // B. Résolution des bulles (suppression des erreurs SNP/Indel)
-        graph.resolveBubbles();
+        bool changed = true;
+        int max_iterations = 10; // Sécurité pour éviter boucle infinie
+        int iter = 0;
+
+        while (changed && iter < max_iterations) {
+            changed = false;
+            iter++;
+            std::cout << "ITERATION " << iter << " :" << std::endl;
+
+            // 1. On écrase les bulles d'abord (pour recoller les chemins)
+            if (graph.resolveBubbles() > 0) {
+                changed = true;
+            }
+
+            // 2. On coupe les pointes ensuite (qui ont pu apparaitre après fusion de bulles)
+            if (graph.clipTips() > 0) {
+                changed = true;
+            }
+        }
+
+        std::cout << "Export du graphe en GFA..." << std::endl;
+        graph.exportToGFA(output_filename + ".gfa");
 
         // --- 6. Génération et Export des Contigs ---
         std::cout << "Generation des Contigs (Extension par couverture)..." << std::endl;
 
         std::vector<std::string> contigs = graph.generateContigs();
-        std::cout << "Nombre de contigs generes : " << contigs.size() << std::endl;
+        std::cout << "Nombre de contigs bruts : " << contigs.size() << std::endl;
+
+        // --- ETAPE DE CONSENSUS ---
+        // On demande un overlap minimum de 'k' nucléotides pour être sûr
+        contigs = GraphDBJ::mergeContigs(contigs, KMER_SIZE);
+
+        std::cout << "Nombre de contigs apres fusion et nettoyage : " << contigs.size() << std::endl;
 
         std::string contig_filename = output_filename + ".contigs.fasta";
         std::ofstream out_contigs(contig_filename);

@@ -1,5 +1,5 @@
 [workspace]
-channels = ["conda-forge"]
+channels = ["conda-forge", "bioconda"]
 name = "Assembleur"
 platforms = ["linux-64"]
 version = "0.1.0"
@@ -37,3 +37,4 @@ cmd = "sed ':a;N;$!ba;s/+\\n/+/g' {{ input }} | grep -v \"^+\" | sed \"s/@/>/g\"
 [dependencies]
 cmake = ">=4.1.2,<5"
 gtest = ">=1.17.0,<2"
+ragtag = { version = ">=2.1.0,<3", channel = "bioconda" }

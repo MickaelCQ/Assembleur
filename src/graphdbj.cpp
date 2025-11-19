@@ -1,6 +1,142 @@
 #include "graphdbj.h"
 #include <iostream>
 #include <stdexcept>
+#include <fstream>
+#include <algorithm>
+
+// Fonction utilitaire pour calculer le chevauchement max entre la fin de s1 et le début de s2
+int calculateOverlap(const std::string& s1, const std::string& s2, int min_len) {
+    int max_ov = 0;
+    // On ne teste pas tout, on limite la zone de recherche pour la performance
+    int limit = std::min(s1.length(), s2.length());
+
+    for (int len = min_len; len < limit; ++len) {
+        // Vérifie si le suffixe de s1 de taille 'len' est égal au préfixe de s2
+        if (s1.compare(s1.length() - len, len, s2, 0, len) == 0) {
+            max_ov = len;
+        }
+    }
+    return max_ov;
+}
+
+std::vector<std::string> GraphDBJ::mergeContigs(std::vector<std::string> contigs, int min_overlap) {
+    std::cout << "--- Post-traitement : Fusion des Contigs (Consensus) ---" << std::endl;
+
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        std::vector<std::string> next_pass;
+        std::vector<bool> merged(contigs.size(), false);
+
+        // Tri par taille décroissante : on veut garder les gros morceaux comme base
+        std::sort(contigs.begin(), contigs.end(), [](const std::string& a, const std::string& b) {
+            return a.length() > b.length();
+        });
+
+        for (size_t i = 0; i < contigs.size(); ++i) {
+            if (merged[i]) continue;
+
+            std::string current = contigs[i];
+            bool merged_current = false;
+
+            for (size_t j = 0; j < contigs.size(); ++j) {
+                if (i == j || merged[j]) continue;
+
+                // 1. INCLUSION : Si contigs[j] est DANS current, on supprime contigs[j]
+                if (current.find(contigs[j]) != std::string::npos) {
+                    merged[j] = true; // J est absorbé par I
+                    changed = true;
+                    continue;
+                }
+
+                // 2. FUSION (Overlap)
+                // Cas A : Fin de CURRENT chevauche Début de J
+                int ov_right = calculateOverlap(current, contigs[j], min_overlap);
+                if (ov_right > 0) {
+                    // Fusion : Current + (J sans le chevauchement)
+                    current += contigs[j].substr(ov_right);
+                    merged[j] = true;
+                    merged_current = true;
+                    changed = true;
+                    // On recommence la boucle avec le nouveau 'current' agrandi
+                    i--; // Astuce pour re-traiter 'current' au prochain tour de i
+                    break;
+                }
+
+                // Cas B : Fin de J chevauche Début de CURRENT
+                int ov_left = calculateOverlap(contigs[j], current, min_overlap);
+                if (ov_left > 0) {
+                    // Fusion : J + (Current sans le chevauchement)
+                    current = contigs[j] + current.substr(ov_left);
+                    merged[j] = true;
+                    merged_current = true;
+                    changed = true;
+                    i--;
+                    break;
+                }
+            }
+
+            if (!merged_current && !merged[i]) {
+                next_pass.push_back(current);
+            } else if (merged_current) {
+                // Si on a fusionné, on ajoute le résultat (qui est dans 'current')
+                // Note: si on a fait i--, on ne l'ajoute pas tout de suite, mais ici on simplifie la logique
+                // Dans cette version simple, on ajoute le merged et on relance le while(changed)
+                next_pass.push_back(current);
+                merged[i] = true;
+            }
+        }
+        contigs = next_pass;
+        if(changed) std::cout << "Cycle de fusion termine. Contigs restants : " << contigs.size() << std::endl;
+    }
+
+    return contigs;
+}
+
+void GraphDBJ::exportToGFA(const std::string& filename) const {
+    std::ofstream out(filename);
+    if (!out.is_open()) return;
+
+    out << "H\tVN:Z:1.0\n";
+
+    // 1. Créer une carte pour traduire k-mer (uint64_t) -> ID simple (1, 2, 3...)
+    std::unordered_map<uint64_t, int> id_map;
+    int current_id = 1;
+
+    // Assignation des IDs
+    for (const auto& pair : nodes_map) {
+        if (!pair.second->removed) {
+            id_map[pair.first] = current_id++;
+        }
+    }
+
+    // 2. Écrire les segments avec les nouveaux IDs
+    for (const auto& pair : nodes_map) {
+        Noeud* node = pair.second;
+        if (node->removed) continue;
+
+        std::string seq = kmerToString(node->p, k - 1);
+        // On utilise id_map[...] pour l'ID
+        out << "S\t" << id_map[node->p] << "\t" << seq << "\tDP:i:" << node->coverage << "\n";
+    }
+
+    // 3. Écrire les liens avec les nouveaux IDs
+    for (const auto& pair : nodes_map) {
+        Noeud* src = pair.second;
+        if (src->removed) continue;
+
+        for (Noeud* dest : src->c) {
+            if (dest->removed) continue;
+
+            // Vérification de sécurité
+            if (id_map.find(src->p) != id_map.end() && id_map.find(dest->p) != id_map.end()) {
+                out << "L\t" << id_map[src->p] << "\t+\t" << id_map[dest->p] << "\t+\t" << (k - 2) << "M\n";
+            }
+        }
+    }
+
+    out.close();
+}
 
 GraphDBJ::GraphDBJ(const Convert& converter, int kmer_size) : k(kmer_size) {
     if (k < 2)
@@ -20,50 +156,48 @@ GraphDBJ::GraphDBJ(const Convert& converter, int kmer_size) : k(kmer_size) {
 
     // 1. Parcourir des reats 
     for (size_t end_pos : read_ends) {
-        // Calculer la longueur de la lecture en bits
-      size_t read_len_nuc = (end_pos - current_read_start) / 2;
-
-        // Si la lecture est assez longue pour contenir au moins un k-mer
+        size_t read_len_nuc = (end_pos - current_read_start) / 2;
         if (read_len_nuc >= (size_t)k) {
-            // Sliding Window : Parcourir tous les k-mers de cette lecture
             for (size_t i = 0; i <= read_len_nuc - k; ++i) {
 
-		//Mickael : dégagage/simplification de la variable intermédiaire pr déterminer les suf/préfixes
-		uint64_t prefix_val = extractKmerValue(bv, current_read_start + i * 2, k - 1);
-		uint64_t suffix_val = extractKmerValue(bv, current_read_start + i * 2 + 2, k - 1);
+                // 1. Récupérer les valeurs brutes (Forward)
+                uint64_t u_fwd = extractKmerValue(bv, current_read_start + i * 2, k - 1);
+                uint64_t v_fwd = extractKmerValue(bv, current_read_start + i * 2 + 2, k - 1);
 
-        	 // 1. Récupérer ou créer le noeud Prefix
-        	 //Mickael: Simplification des conditionnels en dégagant les else (inutile)
-                 Noeud*& prefixNode = nodes_map[prefix_val];
-                if (!prefixNode)
-               {
-    		    prefixNode = new Noeud(prefix_val);
-                }
-                 
-                // 2. Récupérer ou créer les noeuds préfixe & suffixe
-                Noeud*& suffixNode = nodes_map[suffix_val];
-                if (!suffixNode)
-                {
-                    suffixNode = new Noeud(suffix_val);
-                }
+                // 2. Calculer les valeurs inverses (Reverse Complement)
+                // Attention : si U -> V, alors Rev(V) -> Rev(U)
+                uint64_t v_rev = getReverseComplement(v_fwd, k - 1);
+                uint64_t u_rev = getReverseComplement(u_fwd, k - 1);
 
-        	prefixNode->coverage++, suffixNode->coverage++;
-        
-                // 3. Créer l'arête
-                // Vérifier si l'arête existe déjà pour éviter les doublons (multigraphe vs graphe simple)
-                bool edgeExists = false;
-                for (auto* child : prefixNode->c) {
-                    if (child == suffixNode) { edgeExists = true; break;}
-                }
+                // 3. Fonction lambda pour ajouter une arête (évite de dupliquer le code)
+                auto add_edge = [&](uint64_t source_val, uint64_t target_val) {
+                    Noeud*& sourceNode = nodes_map[source_val];
+                    if (!sourceNode) sourceNode = new Noeud(source_val);
 
-                if (!edgeExists) {
-                    prefixNode->c.push_back(suffixNode);
-                    suffixNode->parents.push_back(prefixNode); // Maintien du lien parent pour le retour arrière
-                }
+                    Noeud*& targetNode = nodes_map[target_val];
+                    if (!targetNode) targetNode = new Noeud(target_val);
+
+                    sourceNode->coverage++;
+                    targetNode->coverage++;
+
+                    bool edgeExists = false;
+                    for (auto* child : sourceNode->c) {
+                        if (child == targetNode) { edgeExists = true; break; }
+                    }
+                    if (!edgeExists) {
+                        sourceNode->c.push_back(targetNode);
+                        targetNode->parents.push_back(sourceNode);
+                    }
+                };
+
+                // 4. Ajouter l'arête sur le brin SENS (Forward)
+                add_edge(u_fwd, v_fwd);
+
+                // 5. Ajouter l'arête sur le brin COMPLÉMENTAIRE (Reverse)
+                // C'est ça qui assure la continuité du graphe dans les deux sens !
+                add_edge(v_rev, u_rev);
             }
         }
-
-        // Mise à jour du pointeur de début pour la prochaine lecture
         current_read_start = end_pos;
     }
 }
@@ -74,6 +208,32 @@ GraphDBJ::~GraphDBJ() {
         delete pair.second;
     }
     nodes_map.clear();
+}
+
+uint64_t GraphDBJ::getReverseComplement(uint64_t val, int length) const {
+    uint64_t res = 0;
+
+    // On parcourt chaque nucléotide du k-mer original
+    for (int i = 0; i < length; ++i) {
+        // Récupère le nucléotide le plus à droite (les 2 derniers bits)
+        // Dans votre construction, les bits de poids faible sont les derniers ajoutés (fin de séquence)
+        uint64_t nuc = val & 3ULL;
+
+        // Calcule le complément :
+        // A(00) <-> T(11) => 00 XOR 11 = 11
+        // C(10) <-> G(01) => 10 XOR 11 = 01
+        // L'opération XOR 3 (binaire 11) inverse les bits correctement pour votre encodage.
+        uint64_t comp = nuc ^ 3ULL;
+
+        // Placement dans le résultat :
+        // Le dernier nucléotide de 'val' devient le premier de 'res' (Reverse)
+        // On le décale donc vers la position de poids fort correspondant à l'index i inversé.
+        res |= (comp << (2 * (length - 1 - i)));
+
+        // On passe au nucléotide suivant en décalant val
+        val >>= 2;
+    }
+    return res;
 }
 
 uint64_t GraphDBJ::extractKmerValue(const BitVector& bv, size_t start_bit_idx, int len_nucleotides) const {
@@ -106,53 +266,134 @@ std::vector<Noeud*> GraphDBJ::getNodes() const {
     return result;
 }
 
-void GraphDBJ::removeTips(int length_threshold) {
-    std::cout << "--- Elagage des pointes (Tip Clipping) ---" << std::endl;
+int GraphDBJ::clipTips() {
+    std::cout << "--- Elagage des pointes (Algorithme Minia : Topo + RCTC) ---" << std::endl;
+    int tips_removed_count = 0;
     bool changed = true;
-    int tips_removed = 0;
 
-    // Répète tant qu'on trouve des pointes (car supprimer une pointe peut en révéler une autre)
+    // Paramètres inspirés de Minia
+    // 1. Critère Topologique : On coupe tout ce qui est <= k * 2.5
+    const int TOPO_MAX_LEN = (int)(k * 2.5);
+
+    // 2. Critère Relatif (RCTC) : On coupe jusqu'à k * 10 SI la couverture est faible
+    const int RCTC_MAX_LEN = k * 10;
+
+    // 3. Ratio de couverture : Le voisin (main path) doit être 2x plus couvert que le tip
+    const double RCTC_RATIO = 2.0;
+
     while (changed) {
         changed = false;
-        auto all_nodes = getNodes(); // Copie des pointeurs pour itérer sûrement
 
-        for (Noeud* n : all_nodes) {
-            if (n->removed) continue;
+        // Copie des clés pour itérer
+        std::vector<uint64_t> keys;
+        keys.reserve(nodes_map.size());
+        for(auto& p : nodes_map) keys.push_back(p.first);
 
-            // Définition d'une pointe de fin (Dead end) : Degré Entrant > 0, Degré Sortant == 0
-            if (n->c.empty() && !n->parents.empty()) {
-                // On remonte en arrière pour voir la longueur de la branche
-                std::vector<Noeud*> chain;
-                Noeud* curr = n;
-                bool keep_chain = false;
+        for (uint64_t key : keys) {
+            if (nodes_map.find(key) == nodes_map.end()) continue;
+            Noeud* node = nodes_map[key];
+            if (node->removed) continue;
 
-                // On construit la chaine inversée tant qu'on est sur un chemin linéaire (1 parent, 1 enfant max)
-                while (curr->parents.size() == 1 && curr->c.size() <= 1) {
-                    chain.push_back(curr);
-                    // Si la chaine est trop longue, c'est probablement une vraie séquence, pas une erreur
-                    if (chain.size() > (size_t)length_threshold) {
-                        keep_chain = true;
+            // On cherche les "Dead Ends" (Noeuds sans enfants)
+            if (node->c.empty()) {
+
+                // --- Phase de remontée (Backtracking) ---
+                // On remonte depuis la pointe pour mesurer sa longueur et sa couverture moyenne
+                // jusqu'à trouver un embranchement (le tronc principal).
+
+                std::vector<Noeud*> tip_path;
+                Noeud* curr = node;
+                bool is_valid_tip = true;
+                uint64_t sum_coverage = 0;
+
+                // On remonte tant que :
+                // 1. On n'est pas allé trop loin (limite max absolue)
+                // 2. Le noeud a un seul parent (c'est une ligne droite)
+                // 3. Le noeud parent n'a qu'un seul enfant (c'est encore la ligne du tip)
+                //    Dès que le parent a >1 enfant, c'est le point d'ancrage (Junction), on s'arrête.
+
+                while (tip_path.size() <= RCTC_MAX_LEN) {
+                    tip_path.push_back(curr);
+                    sum_coverage += curr->coverage;
+
+                    if (curr->parents.empty()) {
+                        // C'est un îlot isolé (pas connecté au reste), on peut le supprimer s'il est court
+                        // mais ce n'est pas une "pointe" attachée à un graphe.
+                        is_valid_tip = false;
                         break;
                     }
-                    curr = curr->parents[0];
+
+                    Noeud* parent = curr->parents[0];
+
+                    // Si le parent a plusieurs enfants, c'est le point d'ancrage (la jonction).
+                    // On a trouvé la base de la pointe.
+                    if (parent->c.size() > 1) {
+                        break; // Fin de la remontée
+                    }
+
+                    // Si le parent a plusieurs parents, c'est une structure complexe (bulle?), on arrête.
+                    if (parent->parents.size() != 1) {
+                        is_valid_tip = false;
+                        break;
+                    }
+
+                    curr = parent;
                 }
 
-                // Si c'est une petite pointe (erreur probable), on supprime
-                if (!keep_chain && chain.size() <= (size_t)length_threshold) {
-                    for (Noeud* to_remove : chain) {
-                        to_remove->removed = true; // Marquer comme supprimé
-                        // Déconnecter proprement du reste du graphe
-                        if (!to_remove->parents.empty()) {
-                            disconnectNodes(to_remove->parents[0], to_remove);
-                        }
+                if (!is_valid_tip || tip_path.empty()) continue;
+
+                // Le noeud d'ancrage est le parent du dernier noeud visité dans la boucle
+                Noeud* last_tip_node = tip_path.back();
+                if (last_tip_node->parents.empty()) continue;
+                Noeud* anchor = last_tip_node->parents[0];
+
+                // --- Prise de décision (Minia Logic) ---
+                int len = tip_path.size();
+                double tip_avg_cov = (double)sum_coverage / len;
+                double anchor_cov = (double)anchor->coverage; // Couverture du "Main Path"
+
+                bool should_remove = false;
+
+                // Règle 1 : Topologique (Court et inconditionnel)
+                if (len <= TOPO_MAX_LEN) {
+                    should_remove = true;
+                }
+                // Règle 2 : Relative Coverage (Plus long mais faible couverture comparé au voisin)
+                else if (len <= RCTC_MAX_LEN) {
+                    if (anchor_cov > (tip_avg_cov * RCTC_RATIO)) {
+                        should_remove = true;
                     }
-                    tips_removed++;
+                }
+
+                // --- Suppression ---
+                if (should_remove) {
+                    // 1. Couper le lien entre l'ancre et le début du tip
+                    disconnectNodes(anchor, last_tip_node);
+
+                    // 2. Marquer tout le tip comme supprimé
+                    for (Noeud* n : tip_path) {
+                        n->removed = true;
+                    }
+
+                    tips_removed_count++;
                     changed = true;
                 }
             }
         }
     }
-    std::cout << "Pointes supprimees : " << tips_removed << std::endl;
+    std::cout << "Pointes supprimees : " << tips_removed_count << std::endl;
+    return tips_removed_count;
+}
+
+// Fonction utilitaire à ajouter si elle n'existe pas encore
+void GraphDBJ::disconnectNodes(Noeud* parent, Noeud* child) {
+    if (!parent || !child) return;
+
+    // Supprimer le child de la liste des enfants du parent
+    parent->c.erase(std::remove(parent->c.begin(), parent->c.end(), child), parent->c.end());
+
+    // Supprimer le parent de la liste des parents du child
+    child->parents.erase(std::remove(child->parents.begin(), child->parents.end(), parent), child->parents.end());
 }
 
 Noeud* GraphDBJ::findConvergence(Noeud* branch1, Noeud* branch2, int depth_limit) {
@@ -163,35 +404,101 @@ Noeud* GraphDBJ::findConvergence(Noeud* branch1, Noeud* branch2, int depth_limit
     return nullptr;
 }
 
-void GraphDBJ::resolveBubbles() {
-    std::cout << "--- Resolution des bulles (Avancee) ---" << std::endl;
+int GraphDBJ::resolveBubbles() {
+    // On augmente la profondeur de recherche pour attraper les grosses bulles
+    // k + 2 (~33) était trop court. k * 2 (~62) permet de fermer les grosses boucles.
+    int search_depth = k * 20;
+
+    std::cout << "--- Resolution des bulles (Profondeur " << search_depth << ") ---" << std::endl;
     int bubbles_collapsed = 0;
+    bool changed = true;
 
-    for (auto& pair : nodes_map) {
-        Noeud* s = pair.second;
-        if (s->removed || s->c.size() < 2) continue;
+    int max_passes = 50;
+    int pass = 0;
 
-        // On a une divergence (noeud avec >1 enfant).
-        // Simplification : on regarde les deux premiers enfants.
-        Noeud* pathA = s->c[0];
-        Noeud* pathB = s->c[1];
+    while (changed && pass < max_passes) {
+        changed = false;
+        pass++;
 
-        // Cas SNP typique : S->A->E et S->B->E (Losange simple)
-        if (pathA->c.size() == 1 && pathB->c.size() == 1) {
-            if (pathA->c[0] == pathB->c[0]) {
-                // C'est une bulle ! On garde le chemin avec la plus forte couverture.
-                Noeud* to_keep = (pathA->coverage >= pathB->coverage) ? pathA : pathB;
-                Noeud* to_remove = (pathA->coverage >= pathB->coverage) ? pathB : pathA;
+        std::vector<uint64_t> keys;
+        keys.reserve(nodes_map.size());
+        for(auto& p : nodes_map) keys.push_back(p.first);
 
-                to_remove->removed = true;
-                // Déconnexion propre
-                disconnectNodes(s, to_remove);
-                disconnectNodes(to_remove, to_remove->c[0]);
+        for (uint64_t key : keys) {
+            if (nodes_map.find(key) == nodes_map.end()) continue;
+
+            Noeud* s = nodes_map[key];
+            if (s->removed || s->c.size() != 2) continue;
+
+            Noeud* branch1 = s->c[0];
+            Noeud* branch2 = s->c[1];
+
+            std::vector<Noeud*> path1, path2;
+            path1.push_back(branch1);
+            path2.push_back(branch2);
+
+            Noeud* convergence = nullptr;
+
+            // 3. CHANGEMENT ICI : On utilise search_depth au lieu de (k + 2)
+            for (int step = 0; step < search_depth; ++step) {
+
+                // --- (Le reste de la boucle for ne change pas) ---
+
+                Noeud* last1 = path1.back();
+                if (last1->c.size() == 1 && !last1->c[0]->removed) {
+                    path1.push_back(last1->c[0]);
+                }
+
+                Noeud* last2 = path2.back();
+                if (last2->c.size() == 1 && !last2->c[0]->removed) {
+                    path2.push_back(last2->c[0]);
+                }
+
+                for(Noeud* n2 : path2) {
+                    if (path1.back() == n2) { convergence = n2; break; }
+                }
+                if(convergence) break;
+
+                for(Noeud* n1 : path1) {
+                    if (path2.back() == n1) { convergence = n1; break; }
+                }
+                if(convergence) break;
+
+                if (path1.back() == last1 && path2.back() == last2) break;
+            }
+
+            // --- Simplification (Rien ne change ici non plus) ---
+            if (convergence && convergence != branch1 && convergence != branch2) {
+                uint32_t cov1 = 0;
+                for(auto* n : path1) { if(n==convergence) break; cov1 += n->coverage; }
+
+                uint32_t cov2 = 0;
+                for(auto* n : path2) { if(n==convergence) break; cov2 += n->coverage; }
+
+                std::vector<Noeud*>& to_remove = (cov1 >= cov2) ? path2 : path1;
+                Noeud* branch_to_keep = (cov1 >= cov2) ? branch1 : branch2;
+
+                for(auto* n : to_remove) {
+                    if (n != convergence) {
+                        n->removed = true;
+                    }
+                }
+
+                Noeud* branch_to_remove = (cov1 >= cov2) ? branch2 : branch1;
+                disconnectNodes(s, branch_to_remove);
+
+                bool connected = false;
+                for(auto* child : s->c) if(child == branch_to_keep) connected = true;
+                if(!connected) s->c.push_back(branch_to_keep);
+
                 bubbles_collapsed++;
+                changed = true;
             }
         }
     }
     std::cout << "Bulles simplifiees : " << bubbles_collapsed << std::endl;
+
+    return bubbles_collapsed;
 }
 
 std::vector<std::string> GraphDBJ::generateContigs() const {
@@ -200,7 +507,7 @@ std::vector<std::string> GraphDBJ::generateContigs() const {
 
     // Seuil heuristique : si un chemin est 5x plus couvert que l'autre, on le suit.
     // Je pense que ça on pourrait le mettre en option, faudrait le tester
-    const double COVERAGE_RATIO = 5.0;
+    const double COVERAGE_RATIO = 1.0;
 
     for (const auto& pair : nodes_map) {
         Noeud* startNode = pair.second;
@@ -288,14 +595,4 @@ std::string GraphDBJ::kmerToString(uint64_t val, int length) const {
         else seq += 'T';                     // 11
     }
     return seq;
-}
-
-void GraphDBJ::disconnectNodes(Noeud* parent, Noeud* child) {
-    // Retirer child de la liste des enfants de parent
-    auto it_c = std::find(parent->c.begin(), parent->c.end(), child);
-    if (it_c != parent->c.end()) parent->c.erase(it_c);
-
-    // Retirer parent de la liste des parents de child
-    auto it_p = std::find(child->parents.begin(), child->parents.end(), parent);
-    if (it_p != child->parents.end()) child->parents.erase(it_p);
 }
