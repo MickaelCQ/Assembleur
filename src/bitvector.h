@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>
 #include <cstddef>
+#include <cstdint>
 
 /**
  * @class BitVector
@@ -12,14 +13,17 @@
  *
  * Au lieu de stocker 1 octet (8 bits) par nucléotide (char), cette classe stocke
  * 2 bits par nucléotide (A=00, C=10, G=01, T=11). Cela réduit l'utilisation mémoire par 4.
- * Les données sont stockées par blocs de 60 bits (contenant 30 nucléotides par bloc).
+ * Les données sont stockées par blocs de BLOCK_BITS bits.
  */
 class BitVector
 {
+public:
+    // Constante : nombre de bits par bloc (doit être une valeur compile-time).
+    static constexpr size_t BLOCK_BITS = 64;
+
 protected:
-    // Conteneur de stockage : vecteur de blocs de 60 bits.
-    // std::bitset<60> est optimisé pour les opérations bit à bit.
-    std::vector<std::bitset<60>> _bitVector;
+    // Conteneur de stockage : vecteur de blocs de BLOCK_BITS bits.
+    std::vector<std::bitset<BLOCK_BITS>> _bitVector;
 
     size_t _sizeElement = 2;            // Bits par élément (2 pour les nucléotides)
     size_t _bitCount = 0;               // Nombre total de bits actuellement utilisés
@@ -65,6 +69,7 @@ public :
 
     /**
      * @brief Convertit les bitsets internes en un vecteur booléen standard (pour débogage).
+     * ne pas les prendre en compte dans l'algorithme micka
      */
     std::vector<bool> to_vector() const;
 

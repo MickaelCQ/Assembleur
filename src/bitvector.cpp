@@ -1,9 +1,6 @@
 #include "bitvector.h"
 #include <stdexcept>
-#include <algorithm>
-
-// Constante : Nous utilisons 60 bits par bloc.
-static constexpr size_t BLOCK_BITS = 60;
+#include <cctype>
 
 BitVector::BitVector() = default;
 
