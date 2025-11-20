@@ -10,6 +10,19 @@ Ce projet est un assembleur de génome en C++ qui utilise des graphes de De Brui
 
 Le nom de l'exécutable, `ramilass`, est une combinaison des prénoms des auteurs (Raphaël, Mickael, Loïk) et du mot "Assembleur".
 
+## Structure du projet
+
+-   `src/`: Contient le code source de la librairie et de l'application.
+    -   `graphdbj.cpp`/`.h`: Implémentation du graphe de De Bruijn.
+    -   `bitvector.cpp`/`.h`: Implémentation d'un vecteur de bits.
+    -   `compare.cpp`/`.h`: Fonctions de comparaison.
+    -   `convert.cpp`/`.h`: Fonctions de conversion.
+    -   `main.cpp`: Point d'entrée de l'application `ramilass`.
+-   `tests/`: Contient les tests unitaires.
+-   `build/`: Contient les fichiers de compilation et les exécutables.
+-   `pixi.toml`: Fichier de configuration pour l'environnement et les tâches `pixi`.
+-   `CMakeLists.txt`: Fichier de configuration pour `CMake`.
+
 ## Dépendances
 
 - C++17
@@ -19,14 +32,15 @@ Le nom de l'exécutable, `ramilass`, est une combinaison des prénoms des auteur
 - minia
 - quast
 
-## Installation et Compilation
+## 1. Installation et Compilation
 
 Ce projet utilise `pixi` pour gérer les dépendances et les tâches.
 
 1.  **Installer pixi**
 
-    Suivez les instructions sur le site officiel de [pixi](https://pixi.sh/).
-
+    ```bash
+    curl -fsSL https://pixi.sh/install.sh | sh
+    ```
 2.  **Installer les dépendances du projet**
 
     ```bash
@@ -41,17 +55,27 @@ Ce projet utilise `pixi` pour gérer les dépendances et les tâches.
 
     Cela va créer les exécutables dans le dossier `build/`.
 
-## Exécuter les tests
 
-Pour lancer la suite de tests :
+## 2. Prétraitement
 
-```bash
-pixi run test
+Notre logiciel prend en entrée des fichiers FASTA et non pas FASTQ. 
+Nous utilisons donc une commande `pixi run tofasta <input.fastq> <output.fasta>` pour convertir les fichiers FASTQ en FASTA avant de les utiliser avec `ramilass`.
+Par défaut, `pixi run tofasta` sans argument va convertir `Tests_Et_Ref/reads.fastq.fq` en `/Tests_Et_Ref/reads.fasta`.
+
+
+## 3. Exécuter l'application
+
 ```
+██████╗  █████╗ ███╗   ███╗██╗██╗      █████╗ ███████╗███████╗
+██╔══██╗██╔══██╗████╗ ████║██║██║     ██╔══██╗██╔════╝██╔════╝
+██████╔╝███████║██╔████╔██║██║██║     ███████║███████╗███████╗
+██╔══██╗██╔══██║██║╚██╔╝██║██║██║     ██╔══██║╚════██║╚════██║
+██║  ██║██║  ██║██║ ╚═╝ ██║██║███████╗██║  ██║███████║███████║
+╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝
 
-## Exécuter l'application
+    
+Usage: ./build/ramilass <input.fasta> <output_prefix> [OPTIONS]
 
-```
 Arguments obligatoires:
   <input.fasta>        Fichier contenant les lectures (FASTA)
   <output_prefix>      Prefixe pour les fichiers de sortie
@@ -65,7 +89,6 @@ Options Generales:
 
 Options de l'Assembleur (GraphDBJ):
   --simplification-passes <int>       Nb max de passes de simplification (defaut: 50)
-
   --popping-passes <int>        Nb max de passes de suppression de tips et bulle (defaut: 10)
 
   --overlap-err <dbl>  % d'erreur autorise pour chevauchement (defaut: 0.05)
@@ -86,19 +109,11 @@ pixi run ramilass <chemin_vers_fichier_fasta> <nom_fichier_sortie>
 Par exemple :
 
 ```bash
-pixi run start ./Tests_Et_Ref/reads.fasta reads_output
+pixi run ramilass ./Tests_Et_Ref/reads.fasta contigs_output
 ```
 
-## Structure du projet
+Pour avoir une execution complète, nous recommandons d'utiliser `pixi run start` qui revient a taper la commande complète :
 
--   `src/`: Contient le code source de la librairie et de l'application.
-    -   `graphdbj.cpp`/`.h`: Implémentation du graphe de De Bruijn.
-    -   `bitvector.cpp`/`.h`: Implémentation d'un vecteur de bits.
-    -   `compare.cpp`/`.h`: Fonctions de comparaison.
-    -   `convert.cpp`/`.h`: Fonctions de conversion.
-    -   `main.cpp`: Point d'entrée de l'application `ramilass`.
--   `tests/`: Contient les tests unitaires.
--   `build/`: Contient les fichiers de compilation et les exécutables.
--   `pixi.toml`: Fichier de configuration pour l'environnement et les tâches `pixi`.
--   `CMakeLists.txt`: Fichier de configuration pour `CMake`.
-
+```bash
+./build/ramilass ./Tests_Et_Ref/reads.fasta ramilass --fuse --gfa
+```
