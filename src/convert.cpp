@@ -35,13 +35,17 @@ void Convert::processFile(const string& filename) {
     while (getline(file, line)) {
         if (line.empty()) continue;
 
-        if (line[0] == '>') {
+        if (line[0] == '>') 
+        {
             totReadNum++;
-          if (!cSeq.empty()) {
+          if (!cSeq.empty()) 
+          {
             convertSeq(cSeq);
             cSeq.clear();
           }
-        } else {
+        } 
+        else 
+        {
             // Supprime les espaces blancs pour obtenir le vrai compte de nucléotides
             line.erase(remove_if(line.begin(), line.end(), [](char c) {
                 return isspace(static_cast<unsigned char>(c));
