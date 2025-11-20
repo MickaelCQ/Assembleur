@@ -9,7 +9,7 @@ RESULTS_FILE="benchmark_results_raw.tsv"
 # Commands to benchmark
 # We silence standard output (> /dev/null) to keep the terminal clean
 CMD_MINIA="pixi run -e bench minia -in $DATA_FILE -out /tmp/minia_out"
-CMD_RAMILASS="pixi run ramilass $DATA_FILE /tmp/ramilass_out --debug --fuse"
+CMD_RAMILASS="pixi run ramilass $DATA_FILE /tmp/ramilass_out --debug --fuse --popping-passes 0 --max-contig-len 11000"
 CMD_SPADES="pixi run -e bench spades.py --only-assembler -s $DATA_FILE -o /tmp/spades_out"
 
 # Check for GNU time
