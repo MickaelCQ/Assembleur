@@ -47,14 +47,12 @@ void Convert::processFile(const std::string& filename) {
             current_sequence += line;
         }
     }
-    // --- SECONDE PASSE : Encodage ---
 
-    file.clear(); // Efface le flag EOF (End Of File)
-    // Traite la toute dernière lecture (car aucun '>' ne la déclenche après)
+  // Traite la toute dernière lecture (car aucun '>' ne la déclenche après)
     if (!current_sequence.empty()) {
         convertSeq(current_sequence);
     }
-
+  
     file.close();
 }
 
