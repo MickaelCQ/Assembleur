@@ -1,17 +1,87 @@
-\section{Implémentation}
-\section{GrapheDBJ}
-Le passage du graphe de De Bruijn aux contigs finaux dans ce code s'opère en trois phases distinctes : la simplification topologique, la traversée pour la génération de séquences brutes, et enfin une étape de fusion (Overlap-Layout-Consensus) pour assembler les fragments restants.
+\subsubsection{La classe \texttt{graphdbj.cpp}}
+\textbf{\underline {La construction (dans les grandes lignes) :}}\\
+Dans cette partie, nous revenons sur les choix conceptuels de notre assembleur, l’objectif étant de répondre, nous l’espérons, au plus près des attendus du TP. Les différentes classes décrites s’articulent autour de la classe \texttt{GraphDBJ}, qui constitue le coeur du programme : création du graphe, simplification et recherche de chemin(s).Le constructeur du \emph{graphe de De Bruijn}, dans sa version synthétique :
 
-\subsection{Simplification Préalable du Graphe}
-Avant de tenter de générer des contigs, le programme nettoie le graphe pour éliminer les artefacts de séquençage. Cette étape est orchestrée dans le fichier \texttt{main.cpp} via une boucle itérative qui appelle séquentiellement deux fonctions de la classe \texttt{GraphDBJ} jusqu'à stabilisation ou atteinte du nombre maximal de passes \texttt{max\_passes\_pop}.
+\begin{algorithm}[H]
+\textcolor{bleumarine}{\textbf{\caption{\textcolor{bleumarine}{constructGraph(converter, k)}}}}
+\KwEntree{Objet \texttt{Convert} contenant les lectures ; taille des k-mers \texttt{k}}
+\KwSortie{Graphe de De Bruijn avec noeuds et arêtes}
+\KwComplexite{Temps : $\mathcal{O}(N \cdot k)$, où $N$ est la somme des longueurs des lectures}
+\KwDebut
+\Indp\\
+    \KwSi $2 \leq k \leq 32$ \KwSinon \\
+    \KwRetourner Erreur \textcolor{black!50}{~($\mathcal{O}(1)$)}\;
 
+    bv $\gets$ \texttt{converter}.getBitVector() \;
+    read\_ends $\gets$ \texttt{converter}.getEndPos() \;
+    current\_read\_start $\gets 0$ \;
 
-\subsubsection{Suppression des Pointes (Tips)}
-La méthode \texttt{clipTips()} parcourt la \texttt{nodes\_map} pour identifier les nœuds sans enfants (culs-de-sac). Elle remonte le chemin inverse pour vérifier la longueur de la branche morte. Si la longueur est inférieure à \texttt{TOPO\_MAX\_LEN} ou si la couverture est trop faible par rapport à l'ancrage (ratio défini par \texttt{RCTC\_RATIO}), la branche est coupée via \texttt{disconnectNodes} et les nœuds marqués \texttt{removed = true}.
+    \KwPour end\_pos \KwDans read\_ends \\
+    \Indp
+        read\_len $\gets (end\_pos - current\_read\_start)/2$ \;
+        \KwSi{read\_len $\ge k$} \KwAlors \\
+        \Indp
+            \KwPour i = 0 \KwAllant read\_len - k \\
+            \Indp
+                u\_fwd $\gets$ \texttt{extractKmerValue}(bv, current\_read\_start + 2*i, k-1) \;
+                v\_fwd $\gets$ \texttt{extractKmerValue}(bv, current\_read\_start + 2*i + 2, k-1) \;
+                u\_rev $\gets$ \texttt{getReverseComplement}(u\_fwd, k-1) \;
+                v\_rev $\gets$ \texttt{getReverseComplement}(v\_fwd, k-1) \;
+
+                \KwAjouter \texttt{arête}(u\_fwd $\to$ v\_fwd) , \texttt{arête}(v\_rev $\to$ u\_rev)   \textcolor{black!50}{~($\mathcal{O}(1)$ amorti)}\;
+            \Indm
+        \Indm
+        current\_read\_start $\gets$ end\_pos \;
+    \Indm
+\KwFin
+\end{algorithm}
+
+Le choix de représenter les noeuds comme des $(k-1)$-mers et les arêtes comme des transitions de taille $k+1$ s’appuie sur la formalisation du graphe étudiée en cours. Cette approche facilite également la détection d’erreurs structurées (tips, bulles), contrairement à l’approche par \textit{overlap} (cf. annexe), plus coûteuse. Dans l’algorithme  \texttt{constructGraph}, on effectue une conversion des k-mers en valeurs entières via \texttt{extractKmerValue()}. Cela a été l’une des premières difficultés rencontrées, notamment pour éviter les « débordements » et garantir la cohérence entre les brins \textit{forward} et \textit{reverse}. Dans la deuxième structure itérative, on génère simultanément le complément inverse en ajoutant les deux arêtes, comme discuté lors de la dernière séance de TP. Cela permet d’obtenir un graphe navigable quel que soit le sens de lecture. Cet aspect, facilement oublié, reste pourtant fondamental pour de vrais jeux de données. Ensuite, les noeuds et les arêtes sont exportés en GFA, permettant de représenter le graphe de contigs assemblés avec leur couverture (que nous exploitons dans les outils auxiliaires nous le verrons). Ces explications générales étant posées, nous vous proposons de rdétailler dans la suite de cette section certains aspects qui nous paraissent pertinents. \\
+
+\textbf{\underline{Simplification du Graphe :}}
+
+En générant nos contigs, nous nous sommes aperçus d’un certain nombre de problèmes à gérer pour obtenir des résultats réalistes, tant en quantité qu’en qualité des contigs. Dans ce sens, nous avons implémenté plusieurs méthodes pour nettoyer le graphe afin d’éliminer les éléments qui nous paraissaient, \textit{a priori}, artefactuels. Cette étape (appliquée dans le \texttt{main}) est orchestrée séquentiellement par deux fonctions de la classe \texttt{GraphDBJ}, jusqu’à stabilisation ou jusqu’à l’atteinte du nombre maximal de passes \texttt{max\_passes\_pop}.\\
+
+\begin{wrapfigure}{r}{0.45\textwidth}
+    \centering
+    \includegraphics[width=0.95\linewidth]{IMAGES/Tip.png}
+    \caption{Illustration d'un tip dans le graphe d'assemblage.}
+    \label{fig:clipTips}
+\end{wrapfigure}
+
+Le premier problème qui nous parait essentiel à aborder aborder est la suppression des \textit{Tips}. Eliminer ces derniers, revient à dire : ecxlure les chemins terminaux courts dans le graphe. Ils sont générés, d'après la littérature, majoritairement par des erreurs de séquençage \textcolor{bleumarine}{REF À AJOUTER}. Pour être un peu plus formel (et scientifique au passage) chaque noeud terminal \(v \in V\), on remonte le chemin
+\(\mathcal{T} = (v_1, v_2, \dots, v_n)\) jusqu'au noeud d'ancrage \(a\), où se produit une bifurcation ou jusqu'à un seuil maximal de longueur matérialiser dans le code par  \(n \leq \texttt{RCTC\_MAX\_LEN}\), pour \textbf{Ratio de Couverture de Tip-To-Core}\\
+
+Pour gérer cela, on calcule alors la \og couverture moyenne du tip \fg :  
+\[
+\bar{c}_T = \frac{1}{n} \sum_{i=1}^{n} \text{Coverage}(v_i)
+\]  
+et on la compare avec la couverture du nœud d'ancrage \(\text{cov}(a)\). Nous avons choisi de supprimé le tip si :  
+\[
+n \le \texttt{TOPO\_MAX\_LEN} \quad || \quad \text{Coverage}(a) > \bar{c}_T
+\]\textcolor{bleumarine}{REF À AJOUTER}.
+Dans notre implémentation on utilise \texttt{disconnectNodes(a, v)} pour couper la branche et marque tous les noeuuds du tip comme \texttt{removed = true}. Ce choix permet de retirer les chemins artefactuels tout en préservant les structures linéaires réelles, plus longues et mieux couvertes.
+
 
 
 \subsubsection{Résolution des Bulles}
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.8\textwidth]{IMAGES/bulle.png}
+    \caption{Détection et résolution d'une bulle simple, souvent due à des erreurs de séquençage ou de petits polymorphismes.}
+    \label{fig:resolveBubbles_simple}
+\end{figure}
+
 La méthode \texttt{resolveBubbles()} détecte les divergences où un nœud possède exactement deux enfants qui finissent par converger vers un ancêtre commun plus loin (profondeur limitée par \texttt{SEARCH\_DEPTH\_FACTOR}). L'algorithme compare la couverture cumulée des deux chemins (le chemin "gagnant" est celui avec la plus haute couverture) et marque logiquement les nœuds du chemin perdant comme supprimés.
+
+On ne peux pas résoudre toutes les bulles cependant, typiquement des régions complexe répétée et/ou ambigue.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.8\textwidth]{IMAGES/HAAAAAAAAAAAAAA.png}
+    \caption{Exemple d'une structure complexe qui ne peut pas être entièrement résolue par l'algorithme.}
+    \label{fig:resolveBubbles_complex}
+\end{figure}
 
 \subsection{Génération des Contigs Bruts}
 Une fois le graphe nettoyé, la fonction \texttt{GraphDBJ::generateContigs()} est invoquée pour transformer les chemins de graphe en séquences linéaires.
@@ -112,3 +182,14 @@ else {
 \end{lstlisting}
 
 Le résultat final est un vecteur de \texttt{BitVector} épuré, exporté ensuite au format FASTA et/ou GFA.
+
+    \subsubsection{Outils auxiliaires}
+    
+\texttt{Quast} (QUality ASsessment Tool), dans un premier temps, nous permet d’évaluer la qualité d’un assemblage à l’aide d’un ensemble de statistiques standardisées (longueur totale, taux d’erreurs, fragments mal alignés, etc.). Bien que l’outil puisse fonctionner en mode de novo, sans référence, nous avons choisi d’utiliser ici la séquence de référence fournie pour la mitochondrie du varan de Komodo. Ce choix garantit une évaluat\\ion plus robuste en ancrant nos comparaisons sur un génome connu, ce qui maximise la pertinence
+
+Dans un second temps, nous avons exécuté \texttt{minia}, un autre algorithme d’assemblage à base de de Bruijn graphs, afin d’obtenir un assemblage alternatif. Cet assemblage sert de point de comparaison directe avec celui obtenu précédemment.\\
+
+Enfin, nous avons utilisé \texttt{D-genies}, qui génère un dot-plot visualisant le degré d’identité entre deux séquences. Cet outil complète l’analyse en offrant une représentation intuitive de la synténie, des éventuelles réarrangements, et des discordances locales entre notre assemblage principal et celui obtenu avec \texttt{minia}. L’approche par dot-plot complète notre stratégie puisqu' elle combine des métriques numériques (via Quast) et une inspection visuelle qualitative (via D-genies), ce qui nous à permis de valider nos choix d'implémentations après avoir identifier de grande divergences dans la nature et le nombre de contigs obtenu (dans nos premières éxécutions du programme), nous le détaillerons dans la section discussion. 
+    
+    \subsubsection{La fonction principale}
+
