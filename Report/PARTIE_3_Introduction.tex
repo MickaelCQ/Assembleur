@@ -1,9 +1,9 @@
 \vspace{-12mm}
-\section{Introduction}
-
+\section{Etape de conception}
+\subsection{Stratégies vues en cours \textit{(Exercice 1)}}
 Nous avons vu en cours que la recherche d’une \underline{superchaîne optimale} contenant tous les mots d’une famille \(\mathcal{F}\) est un problème NP-difficile. Par conséquent, nous utilisons des \underline{approches heuristiques} : celles-ci fournissent une solution, mais sans garantie d’optimalité. Trois méthodes ont été étudiées et développées durant le semestre. Comme demandé, voici une synthèse de chacune.
 
-\subsection{Approche intuitive : la méthode gloutonne}
+\subsubsection{Approche intuitive : la méthode gloutonne}
 
 Cette première approche repose sur les \underline{choix locaux optimaux} (maximisation des \textit{overlaps}), mais sans assurance d’optimalité globale. On va comparer nos mots deux à deux pour identifier leurs chevauchements. Sélectionner le plus long et fusionner les deux mots concernés (créer des contigs). On répéte ainsi l’opération jusqu’à obtenir la superchaîne $\mathcal{S}$. On stock nos \textit{overlaps} dans une matrice $\mathcal{M}$ de $n x n $ séquences. Ci-dessous la stratégie construite à partir de la correction du TD :  \\
 
@@ -59,7 +59,7 @@ Cette première approche repose sur les \underline{choix locaux optimaux} (maxim
 \end{center}
 L’algorithme glouton, bien que rapide avec une complexité de $\mathcal{O}(n^3 + n^2 L)$, est une heuristique purement locale pose un soucis dans son manque de garantie d’optimalité globale. Pour atténuer cette limitation, nous explorons une approche plus systématique basée sur les \underline{graphes de chevauchement}.
 
-\subsection{Approche par graphe de chevauchement}
+\subsubsection{Approche par graphe de chevauchement}
 
 Cette seconde manière d'appréhender notre problème repose sur une modélisation globale des relations entre les mots. Cela va nous permettre qui  mieux explorer les chevauchements et d’éviter \og les pièges des choix \fg locaux.  Avant de rechercher notre super séquence, il est nécessaire de construire le graphe. Chaque sommet du graphe représente un mot de  \(\mathcal{F}\), et chaque arête est pondérée par la longueur de \textit{l'overlap} :
 
@@ -157,5 +157,117 @@ Ceci étant fait, l'étape suivante consiste à chercher notre chemin qui va max
 
 Cet algorithme recherche un chemin maximal dans le graphe de chevauchement pour construire une superchaîne. Il commence par identifier un sommet de départ, généralement celui avec le moins d’arêtes entrantes, afin de minimiser les risques de cycles. Ensuite, il construit un chemin en choisissant à chaque étape l’arête de poids maximal vers un sommet non visité. Cette approche permet d’explorer les chevauchements de manière plus globale que la méthode gloutonne. La complexité temporelle est \(\mathcal{O}(n^2 L + n^3)\), car la recherche des arêtes de poids maximal peut nécessiter jusqu’à \(\mathcal{O}(n^3)\) opérations dans le pire cas. La complexité spatiale reste \(\mathcal{O}(n^2)\) pour stocker le graphe.
 
-\subsection{DBJ and next}
+\subsubsection{Notre choix le graphe de De Bruijn : Avantages \& inconvénients}
+
+Durant les enseignements, nous avons explorés plusieurs "paradigmes" (Gloutonne, OLC \& graphe de De Bruijn), après discussions et analyse des avantages et inconvénients de chaque méthode, nous avons retenu le graphe de De Bruijn pour sa capacité à représenter les relations entre kmers dans de (très) grandes collections de \textit{short reads}, tout en réduisant la complexité liée à l'identification de nos chevauchements exacts. 
+
+\subsection{Explication des grandes étapes \textit{(Exercice 2)}}
+
+\begin{center} 
+    \begin{tikzpicture}
+        \node[anchor=center] at (0,0) {\includegraphics[width=1\textwidth]{SchemaV1.png}};
+    \end{tikzpicture}
+\end{center}
+    \newpage
+    \subsubsection{Le module~\texttt{bitvector.cpp}}
+
+Une question évidente que l'on s'est posée lorsqu'on s'est attaqué au projet est : comment allons-nous représenter et stocker nos lectures ? Considérant que les technologies modernes de séquençage posent, par le volume de données, des contraintes importantes en mémoire et en performance lors de l'assemblage, il nous a paru pertinent d'utiliser des \texttt{BitVectors}. Parmi les avantages de cette structure, on trouve la \og compacité \fg{} mémoire, i.e. au regard de notre alphabet $\Sigma = \{A,T,G,C\}$, une de nos séquences $s = s_1 s_2 \dots s_n$, avec $s_i \in \Sigma$ dans notre \texttt{FASTA}, peut être codée sur 2 bits par nucléotide via une fonction d'encodage, :
+\[
+\text{encodage} : \Sigma \to \{00, 01, 10, 11\} ~ ici ~ |\Sigma| = 4 \quad \text{et} \quad \log_2 |\Sigma| = 2. \mid b = \text{enc}(s_1)\,\text{enc}(s_2)\,\dots\,\text{enc}(s_n)
+\]
+Nous avons vu durant les enseignements (DevOps, Algorithmique du texte, ...), que la représentation  classique de $s$ est d'un octet par nucléotide (nt). Cela représente un stockage théorique en mémoire de 8n \text{bits}. Notons qu'un \texttt{BitVector} quant à lui repose sur l’utilisation d’un tableau de blocs de taille fixe (typiquement des entiers non signés de 64 bits). Chaque élément encode une portion de $s$, et la classe garantit que l’écriture comme la lecture se font en temps constant $\mathcal{O}_{(1)}$ grâce à des opérations bit-à-bit (\textit{bitwise}). Cette approche réduit significativement l’empreinte mémoire : là où une chaîne classique occupe $8n$ bits pour $n$ nucléotides. Notre représentation compacte utilise $2n$ bits, auxquels nous le verrons, on ajoute un surcoût négligeable pour les opérations de masquage et de décalage nécessaires à la manipulation interne des blocs. Ainsi , on peut stocker 4 fois plus de donnée :
+\[
+\text{Gain} = \frac{8n}{2n} = 4,00 = 400\%
+\]
+Qu'on se le dise, une réduction d’un facteur 4 de la mémoire utilisée pour stocker nos lectures c'est particulièrement pertinent dans un contexte où des millions de lectures doivent être simultanément maintenues en mémoire, notamment lors de la construction d’un graphe de De Bruijn dense. \\
+
+D’un point de vue pratique, la gestion du stockage relève de la classe \texttt{bitvector}, qui implémente trois constructeurs. Le premier, permet d’instancier la structure minimale, afin de la construire progressivement avant toute réservation de mémoire.
+Le second, \texttt{bitvector(sizeElement)}, autorise la définition explicite de la granularité, en fixant la taille de chaque élément dans les blocs de bits. Ce choix vise notamment à éviter les erreurs d’\textit{overflow} et à garantir que chaque élément tienne dans un bloc unique.Enfin, le constructeur \texttt{bitvector(sizeElement, dataSize)} préalloue l’espace nécessaire pour un nombre donné de bits ; cette stratégie optimise les performances lorsque la taille finale est connue à l’avance, en limitant les réallocations successives. \\
+
+Du reste, nous avons implémenter un certain nombres de fonctions pour alimenter les bitvectors et maintenir leurs \underline{cohérence interne}. La fonction \texttt{reserve()}, anticipe l'allocation en calculant le nombre de blocs nécessaires. la fonction \texttt{push\_back()} insère un bit à la fin du vecteur (en allouant un nouveau bloc si nécessaire). On à également des fonctions utilitaires comme \texttt{clear()} nous permet de réinitialiser proprement l'objet ou \texttt{size()} pour avoir accès au nombre de bits stockés (pour borné les boucles de parcours). Enfin, \texttt{setSizeElement()} et \texttt{getSizeElement()} gèrent la \og granularité \fg des éléments empaquetés dans les blocs. Sur cette premier partie de la classe nous avons disons le \og coeur mécanique \fg du \texttt{BitVector}. On trouve dans la classe également des \underline{fonctions interactives} comme la conversion complète des bits gérée par \texttt{to\_vector()}, les mécanismes d'initialisations tels que \texttt{createListBit()}, \texttt{addCha()}. Quant à la lecture d'un bit à un index donné est effectué apr \texttt{readBitVector()}. Après avoir présenté le \texttt{BitVector} intéressons nous à la classe \texttt{graphdbj}.
+ 
+\newpage
+\subsubsection{La classe \texttt{convert.cpp}}
+Nous nous concentrons maintenant sur la classe \texttt{convert} qui exploite les fonctions de \texttt{bitvector} pour lire les fichiers \texttt{FASTA}, encoder les séquences en \text{bits} et enregistrer les positions de fin de lecture. Voyons comment nous avons implémenté la fonction principale \texttt{processFile()}: \\
+
+\begin{algorithm}[H]
+\textcolor{bleumarine}{\textbf{\caption{\textcolor{bleumarine}{processFile(filename)}}}}
+\KwEntree{Fichier FASTA \texttt{filename}}
+\KwSortie{\texttt{bitVector} rempli ; \texttt{endPos} mis à jour}
+\KwComplexite{Temps : $\mathcal{O}(n)$, où $n$ est le nombre total de caractères du fichier}
+\KwDebut
+\Indp
+
+    Ouvrir le fichier \texttt{filename}\;
+    \KwSi{le fichier ne peut pas être ouvert} \KwAlors \\
+        \Indp \KwRetourner Erreur \; \Indm
+    \KwFinSi \\
+
+    \KwReinitialiser \texttt{bitVector} et \texttt{endPos} \textcolor{black!50}{~($\mathcal{O}(1)$)}\;
+
+    totReadSize $\gets 0$ \;
+    totReadNum $\gets 0$ \;
+    cSeq $\gets$ "" \;
+
+    bitVector\texttt{.reserve(totReadSize * 2)} \textcolor{black!50}{(réservation initiale)}\;
+    endPos\texttt{.reserve(totReadNum)} \textcolor{black!50}{(capacité vide)}\;
+
+    \BlankLine
+
+    \KwTantQue ligne \textcolor{black!50}{~$\mathcal{O}(n)$} \\
+    \Indp
+        \KwSi{ligne vide} \KwAlors \;
+        \Indp \KwContinuer\;
+        \Indm \KwSi{ligne[0] = ">"} \KwAlors \\
+        \Indp
+            totReadNum $\gets$ totReadNum + 1 \;
+            
+        \KwSi{cSeq non vide} \KwAlors \\
+                \Indp convertSeq(cSeq) \textcolor{black!50}{~($\mathcal{O}(L)$)}\;
+                cSeq $\gets$ "" \; \Indm
+        \KwFinSi \\
+        \Indm \KwFinSi
+        
+        \KwSinon \\
+        \Indp \KwSupprimer les " " \textcolor{black!50}{~($\mathcal{O}(L)$)*}\;
+            totReadSize $\gets$ totReadSize + longueur(ligne) \textcolor{black!50}\;
+            cSeq $\gets$ cSeq + ligne \textcolor{black!50}{~($\mathcal{O}(L)$)}\;
+        \Indm \KwFinSi \\
+    \Indm \KwFinTantQue
+
+    \KwSi{cSeq non vide} \KwAlors \\
+    \Indp \texttt{convertSeq}(cSeq) \textcolor{black!50}{~($\mathcal{O}(L)$)}\; \Indm
+    \KwFinSi \\
+    \KwFermer le fichier\;
+
+\Indm
+\KwFin
+\end{algorithm}
+
+\texttt{convertSeq} transforme une chaîne de nucléotides en \texttt{bits} dans le \texttt{BitVector}. La modularité de cette fonction nous permet de séparer clairement le traitement de chaque lecture.   L’enregistrement de la position finale de la séquence dans \texttt{endPos} facilite l’accès aux limites de chaque lecture et la reconstruction ultérieure.
+
+\begin{algorithm}[H]
+\textcolor{bleumarine}{\textbf{\caption{\textcolor{bleumarine}{convertSeq(sequence)}}}}
+\KwEntree{Séquence nucléotidique \texttt{sequence} de longueur $L$}
+\KwSortie{Bits ajoutés à \texttt{bitVector} ; fin de lecture ajoutée à \texttt{endPos}}
+\KwComplexite{Temps : $\mathcal{O}(L)$}
+\KwDebut
+\Indp
+
+    \KwSi{sequence vide} \KwAlors \KwRetourner\;
+
+    \KwPour{chaque nucléotide $c$ dans \texttt{sequence}} \textcolor{black!50}{~($\mathcal{O}(L)$)} \\
+    \Indp
+        \texttt{bitVector.}addCha(c) \textcolor{black!50}{~($\mathcal{O}(1)$)}\;
+    \Indm
+    \KwFinPour
+
+    \KwAjouter \texttt{bitVector.}size() à \texttt{endPos} \textcolor{black!50}{~($\mathcal{O}(1)$)}\;
+
+\Indm
+\KwFin
+\end{algorithm}
+    \subsubsection{La classe \texttt{graphdbj.cpp}}
+    \subsubsection{Usage d'outils auxiliaires}
+    \subsubsection{La fonction principale}
 

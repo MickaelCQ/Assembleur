@@ -1,1 +1,114 @@
-\section{Méthodologie}
+\section{Implémentation}
+\section{GrapheDBJ}
+Le passage du graphe de De Bruijn aux contigs finaux dans ce code s'opère en trois phases distinctes : la simplification topologique, la traversée pour la génération de séquences brutes, et enfin une étape de fusion (Overlap-Layout-Consensus) pour assembler les fragments restants.
+
+\subsection{Simplification Préalable du Graphe}
+Avant de tenter de générer des contigs, le programme nettoie le graphe pour éliminer les artefacts de séquençage. Cette étape est orchestrée dans le fichier \texttt{main.cpp} via une boucle itérative qui appelle séquentiellement deux fonctions de la classe \texttt{GraphDBJ} jusqu'à stabilisation ou atteinte du nombre maximal de passes \texttt{max\_passes\_pop}.
+
+
+\subsubsection{Suppression des Pointes (Tips)}
+La méthode \texttt{clipTips()} parcourt la \texttt{nodes\_map} pour identifier les nœuds sans enfants (culs-de-sac). Elle remonte le chemin inverse pour vérifier la longueur de la branche morte. Si la longueur est inférieure à \texttt{TOPO\_MAX\_LEN} ou si la couverture est trop faible par rapport à l'ancrage (ratio défini par \texttt{RCTC\_RATIO}), la branche est coupée via \texttt{disconnectNodes} et les nœuds marqués \texttt{removed = true}.
+
+
+\subsubsection{Résolution des Bulles}
+La méthode \texttt{resolveBubbles()} détecte les divergences où un nœud possède exactement deux enfants qui finissent par converger vers un ancêtre commun plus loin (profondeur limitée par \texttt{SEARCH\_DEPTH\_FACTOR}). L'algorithme compare la couverture cumulée des deux chemins (le chemin "gagnant" est celui avec la plus haute couverture) et marque logiquement les nœuds du chemin perdant comme supprimés.
+
+\subsection{Génération des Contigs Bruts}
+Une fois le graphe nettoyé, la fonction \texttt{GraphDBJ::generateContigs()} est invoquée pour transformer les chemins de graphe en séquences linéaires.
+
+
+\begin{itemize}
+    \item \textbf{Identification des points de départ :} L'algorithme itère sur tous les nœuds et initie un nouveau contig si un nœud est un début potentiel (pas de parents) ou un point de jonction complexe (plusieurs parents).
+    \item \textbf{Traversée gloutonne :} À partir du nœud de départ, une boucle \texttt{while} suit les arêtes sortantes.
+    \begin{itemize}
+        \item Si le nœud courant a un seul enfant, l'extension est triviale.
+        \item En cas de bifurcation (plusieurs enfants), l'algorithme utilise une heuristique de couverture : il sélectionne l'enfant ayant la couverture maximale si celle-ci est supérieure à celle du second meilleur enfant multipliée par \texttt{COVERAGE\_RATIO}.
+    \end{itemize}
+    \item \textbf{Construction de la séquence :} Les nucléotides sont extraits des nœuds et ajoutés progressivement à un objet \texttt{BitVector} représentant le contig en cours de construction.
+\end{itemize}
+
+\subsection{Fusion des Contigs (Post-traitement)}
+La fonction \texttt{mergeContigs} agit comme le « cerveau » du post-traitement de l'assembleur GraphDBJ. Son objectif principal est de recoudre les contigs fragmentés qui n'ont pas pu être fusionnés lors du parcours du graphe en raison d'erreurs de séquençage ou d'une topologie complexe.
+
+Contrairement aux assembleurs standards qui n'inspectent que les extrémités immédiates (les pointes) des contigs, cette implémentation utilise une stratégie de \textbf{« Deep Seeding » (Ensemencement Profond)} couplée à un mécanisme d'\textbf{Extension Bidirectionnelle}.
+
+\input{mergeFig.tikz}
+
+\subsection{Le « Deep Seeding »}
+La logique de fusion standard examine souvent uniquement les derniers $k$ nucléotides. Cette méthode est rapide mais fragile ; si les 10 dernières bases contiennent une erreur de séquençage, la fusion échoue.
+
+Le \textbf{Deep Seeding} scanne profondément à l'intérieur du contig « Maître » (jusqu'à 5000 pb) pour trouver une correspondance avec un contig « Candidat ». Cela permet à l'algorithme de contourner les « pointes sales » (erreurs en fin de lecture) et de localiser le véritable chevauchement propre, enfoui plus profondément dans la séquence.
+
+\subsection{Phase 1 : Containment}
+Avant de fusionner, l'assembleur doit éliminer la redondance. Souvent, le graphe produit un long contig (ex: 10kpb) et une copie plus courte et redondante (ex: 500pb) qui est identique à une sous-séquence du grand contig.
+
+\subsubsection{Indexation des Départs}
+Une table de hachage (\texttt{start\_map}) est créée pour stocker le premier $k$-mer de chaque contig.
+\begin{itemize}
+    \item \textbf{Efficacité :} Vérifier chaque contig contre tous les autres est en $O(N^2)$. L'indexation réduit considérablement ce coût.
+    \item \textbf{Complément Inverse (RC) :} Nous indexons à la fois le début \textit{Forward} (Sens) et le début \textit{RC} (Anti-sens), car un petit contig peut être orienté « à l'envers » par rapport au maître.
+\end{itemize}
+
+\subsubsection{Logique de Scan}
+L'algorithme itère sur chaque contig « Maître » et scanne chaque position :
+
+\begin{lstlisting}[language=C++, caption={Pseudo-code de la logique d'inclusion}]
+// Logique simplifiee
+Pour chaque position 'pos' dans Maitre :
+   cle = getKmerAt(pos)
+   si (cle existe dans start_map) :
+       Candidat = start_map[cle]
+       Verifier si le Candidat s'insere parfaitement dans le Maitre a 'pos'
+       Si oui -> Marquer le Candidat comme ABSORBE (le supprimer)
+\end{lstlisting}
+
+\subsection{Phase 2 : Extension Profonde}
+Cette phase joint les contigs distincts et propres. La logique est enveloppée dans une boucle \texttt{while(global\_change)}, garantissant que si la fusion de A et B crée une nouvelle queue qui correspond à C, le processus continue jusqu'à stabilisation.
+
+\subsubsection{L'Index de Graines}
+Un index (\texttt{seed\_map}) de tous les candidats disponibles est construit. Nous indexons toutes les $k$-ièmes positions (ex: 0, 31, 62...). Cela réduit l'utilisation mémoire d'un facteur $k$ tout en garantissant la détection de tout chevauchement supérieur à $2k$.
+
+\subsubsection{Le Scanner (Fonction Lambda)}
+La fonction \texttt{try\_extend} scanne en arrière depuis la queue d'un contig Maître (jusqu'à \texttt{MAX\_SCAN\_DEPTH} = 5000pb).
+
+\begin{enumerate}
+    \item \textbf{Recherche :} Vérifie si un $k$-mer à la queue du Maître correspond à une graine (\textit{seed}) d'un Candidat.
+    \item \textbf{Calcul d'Alignement :}
+    \[
+    \text{Position\_Maitre} = \text{position\_sonde} - \text{offset\_graine}
+    \]
+    Si le Maître correspond à la graine du Candidat à l'offset 20, le début du Candidat (offset 0) doit s'aligner 20 bases plus tôt dans le Maître.
+    \item \textbf{La Fusion (Redimensionnement) :}
+\begin{lstlisting}[language=C++]
+master.resize(align_start * 2); // Couper la "pointe sale" du Maitre
+master.append(*to_check);       // Coller le Candidat propre
+\end{lstlisting}
+    De manière cruciale, \texttt{resize} supprime l'extrémité sujette aux erreurs du Maître, la remplaçant par la séquence propre du Candidat.
+\end{enumerate}
+
+\subsection{Le Correctif Bidirectionnel}
+C'est cette logique spécifique qui a résolu le problème où deux grands contigs refusaient de fusionner malgré une tolérance d'erreur élevée.
+
+\subsubsection{Le Problème : Directionnalité et Orientation}
+La logique précédente était « Ajout Uniquement » (\textit{Forward}). Elle tentait $ \text{Maître} + \text{Candidat} $.
+Cela échouait car les contigs étaient dans une configuration « Tête-à-Tête » (visible sur les dotplots par des diagonales opposées $\setminus$ vs $/$). La Queue de A ne correspondait pas à la Tête de B, mais la \textbf{Tête de A} correspondait à la Tête de B (en Complément Inverse).
+
+\subsubsection{La Solution : Extension du Maître Inversé}
+Le code corrigé tente d'étendre le Maître, et si cela échoue, il tente d'étendre le \textbf{Complément Inverse} du Maître.
+
+\begin{lstlisting}[language=C++, caption={Extension bidirectionnelle}]
+// Tentative 1 : Extension Standard
+if (try_extend(contigs[i])) { 
+    // Succes : Maitre etendu vers l'avant
+} 
+// Tentative 2 : Retourner le Maitre !
+else {
+    BitVector masterRC = getBitVectorReverseComplement(contigs[i]);
+    if (try_extend(masterRC)) {
+        // Succes : On retourne le maitre pour permettre la fusion
+        contigs[i] = masterRC; 
+    }
+}
+\end{lstlisting}
+
+Le résultat final est un vecteur de \texttt{BitVector} épuré, exporté ensuite au format FASTA et/ou GFA.
