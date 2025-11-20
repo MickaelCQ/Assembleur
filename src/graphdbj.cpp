@@ -162,7 +162,7 @@ static bool checkContainmentAt(const BitVector& master, const BitVector& candida
  * 2. Phase d'Extension : Tente d'étendre les bouts des contigs restants en trouvant des chevauchements.
  * Gère les orientations (Forward/Reverse) pour permettre la fusion même si un contig a été assemblé à l'envers.
  */
-void GraphDBJ::mergeContigs(std::vector<BitVector> contigs, int min_overlap, double overlap_error_percent, double contained_error_percent) {
+void GraphDBJ::mergeContigs(std::vector<BitVector>& contigs, int min_overlap, double overlap_error_percent, double contained_error_percent) {
     std::cout << "--- Post-traitement : Fusion 'Deep Seeding' (Bidirectionnelle) ---" << std::endl;
 
     // Taille du k-mer utilisé pour l'indexation (seed)

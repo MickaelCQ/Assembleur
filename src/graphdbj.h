@@ -200,7 +200,7 @@ public:
      * @brief Fusionne les contigs qui se chevauchent fortement (étape OLC post-graphe).
      * Utilise une approche de "Deep Seeding" et gère les inclusions.
      */
-    static void mergeContigs(std::vector<BitVector> contigs, int min_overlap, double overlap_error_percent, double contained_error_percent);
+    static void mergeContigs(std::vector<BitVector>& contigs, int min_overlap, double overlap_error_percent, double contained_error_percent);
 };
 
 #endif //ASSEMBLEUR_GRAPHDBJ_H
