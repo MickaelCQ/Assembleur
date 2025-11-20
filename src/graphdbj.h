@@ -106,26 +106,35 @@ private:
     /**
      * @brief Calcule le complément inverse d'une séquence encodée en entier.
      * Exemple : A(00) devient T(11), C(10) devient G(01), et l'ordre est inversé.
+     * @complexity : space : O(1), time : O(k)
+     * k = quantité nucléotides.
      */
     uint64_t getReverseComplement(uint64_t val, int k) const;
 
     /**
      * @brief Extrait la valeur entière d'un k-mer directement depuis le BitVector compressé.
+     * @complexity : space : O(1), time : O(k)
+     * k = quantité de nucléotide
      */
     uint64_t extractKmerValue(const BitVector& bv, size_t start_bit_idx, int len_nucleotides) const;
 
     /**
      * @brief Convertit un entier k-mer en chaîne de caractères lisible (A, C, G, T).
+     * @complexity : space : O(l), time : O(l)
+     * l = longueur d'entrèe
      */
     std::string kmerToString(uint64_t val, int length) const;
 
     /**
      * @brief Supprime proprement les liens (arêtes) entre un parent et un enfant.
+     * @complexity : space : O(1), time : O(d)
+     * d = plus grand degré d'un noeud
      */
     void disconnectNodes(Noeud* parent, Noeud* child);
 
     /**
      * @brief Cherche un noeud de convergence entre deux branches (détection de bulle).
+     * @complexity : space (), time ()
      */
     static Noeud* findConvergence(Noeud* branch1, Noeud* branch2, int depth_limit);
 
