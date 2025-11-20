@@ -177,7 +177,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    const auto& read_ends = converter.get_read_end_positions();
+    const auto& read_ends = converter.getEndPos();
     if (read_ends.empty()) {
         std::cerr << "Aucune lecture trouvee dans le fichier." << std::endl;
         return 1;
@@ -185,7 +185,7 @@ int main(int argc, char* argv[]) {
 
     // Stats rapides
     {
-        CompareKMers comparator(converter.get_bitVector(), read_ends, k_size);
+        CompareKMers comparator(converter.getBitVector(), read_ends, k_size);
         std::cout << "Lectures chargees : " << comparator.get_nReads() << std::endl;
         if (DEBUG_MODE) std::cout << "K-mers theoriques : " << comparator.get_all_nKmers() << std::endl;
     }

@@ -445,8 +445,8 @@ std::vector<BitVector> GraphDBJ::generateContigs() const {
 GraphDBJ::GraphDBJ(const Convert& converter, int kmer_size, const GraphDBJConfig& conf) : k(kmer_size), config(conf) {
     if (k < 2 || k > 32) throw std::invalid_argument("K invalide (2-32)");
 
-    const BitVector& bv = converter.get_bitVector();
-    const std::vector<size_t>& read_ends = converter.get_read_end_positions();
+    const BitVector& bv = converter.getBitVector();
+    const std::vector<size_t>& read_ends = converter.getEndPos();
     size_t current_read_start = 0;
 
     // Itération sur chaque lecture (read)
