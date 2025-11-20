@@ -66,7 +66,7 @@ void print_usage(const char* prog_name, const GraphDBJConfig& def_conf) {
               << "  --help, -h           Afficher ce message\n\n"
               << "Options de l'Assembleur (GraphDBJ):\n"
               << "  --simplification-passes <int> Nb max de passes de simplification (defaut: " << def_conf.MAX_PASSES << ")\n"
-              << "  --popping-passes <int>        Nb max de passes de suppression de tips/bulles (defaut: 10)\n\n"
+              << "  --popping-passes <int>        Nb max de passes de suppression de tips/bulles (defaut: 1)\n\n"
               << "  --overlap-err <dbl>    % d'erreur autorise pour chevauchement (defaut: " << def_conf.ERROR_PERCENT_OVERLAP << ")\n"
               << "  --contained-err <dbl>  % d'erreur autorise pour inclusion (defaut: " << def_conf.ERROR_PERCENT_CONTAINED << ")\n\n"
               << "  --cov-ratio <dbl>      Ratio de couverture pour bifurcations (defaut: " << def_conf.COVERAGE_RATIO << ")\n"
@@ -113,13 +113,13 @@ int main(int argc, char* argv[]) {
 
     // Paramètres optionnels de config (-1 ou -1.0 indique "pas défini par l'user")
     int max_passes = -1;
-    int max_passes_pop = 10;
-    int max_contig_len = -1; // NOUVEAU
+    int max_passes_pop = 1;
+    int max_contig_len = -1; 
     double overlap_err = -1.0;
     double contained_err = -1.0;
     double cov_ratio = -1.0;
     double tip_ratio = -1.0;
-    double tip_rctc_ratio = -1.0; // NOUVEAU
+    double tip_rctc_ratio = -1.0; 
     double search_depth = -1.0;
 
     // Parsing manuel
@@ -163,16 +163,16 @@ int main(int argc, char* argv[]) {
         else if (arg == "--cov-ratio") {
             if (i + 1 < argc) cov_ratio = std::stod(argv[++i]);
         }
-        else if (arg == "--tip-ratio") { // Pour TOPO_MAX_RATIO
+        else if (arg == "--tip-ratio") {
             if (i + 1 < argc) tip_ratio = std::stod(argv[++i]);
         }
-        else if (arg == "--tip-rctc-ratio") { // Pour RCTC_MAX_RATIO (NOUVEAU)
+        else if (arg == "--tip-rctc-ratio") {
             if (i + 1 < argc) tip_rctc_ratio = std::stod(argv[++i]);
         }
         else if (arg == "--search-depth") {
             if (i + 1 < argc) search_depth = std::stod(argv[++i]);
         }
-        else if (arg == "--max-contig-len") { // (NOUVEAU)
+        else if (arg == "--max-contig-len") {
             if (i + 1 < argc) max_contig_len = std::stoi(argv[++i]);
         }
         else if (arg == "--min-cov") {
