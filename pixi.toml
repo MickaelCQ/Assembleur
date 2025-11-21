@@ -25,7 +25,7 @@ args = [
     { "arg" = "file", "default" = "data/reads.fasta" },
     { "arg" = "output", "default" = "ramilass" },
 ]
-cmd = "./build/ramilass $INIT_CWD/{{ file }} output --fuse --gfa --debug --max-contig-len 11000"
+cmd = "./build/ramilass $INIT_CWD/{{ file }} output --fuse --gfa --debug --max-contig-len 11000 --popping-passes 0"
 description = "Run the app"
 
 [tasks.ramilass]
@@ -48,6 +48,8 @@ description = "Check memory leaks using Valgrind"
 [dependencies]
 cmake = ">=4.1.2,<5"
 gtest = ">=1.17.0,<2"
+
+[feature.quast.dependencies]
 quast = { version = ">=5.3.0,<6", channel = "bioconda" }
 
 [feature.bench.dependencies]
@@ -72,4 +74,4 @@ description = "Generate plots from benchmark results"
 [environments]
 plot = { features = ["plot"], no-default-feature = true }
 memcheck = { features = ["memcheck"], no-default-feature = true }
-bench = { features = ["bench"], no-default-feature = true }
+bench = { features = ["bench", "quast"], no-default-feature = true }
