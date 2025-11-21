@@ -69,7 +69,7 @@ FetchContent_MakeAvailable(googletest)
 set(TEST_FILES
 tests/test_compare.cpp
 tests/test_convert.cpp
-# Ajoutez tous vos autres fichiers de test ici
+tests/test_bitvector.cpp
 )
 
 # 8. Add the test executable

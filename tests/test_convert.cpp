@@ -3,101 +3,156 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include <cstdio> // For std::remove
+#include <filesystem> // C++17 requis (utilisé dans votre main.cpp)
 
-// Fixture for creating a temporary test file
+namespace fs = std::filesystem;
+
+// --- Helper : Gestion des fichiers temporaires ---
+
 class ConvertTest : public ::testing::Test {
 protected:
-    std::string test_filename = "temp_test_convert.fa";
+    std::string temp_file = "temp_test.fasta";
 
     void SetUp() override {
-        // Create a temporary FASTA file for testing
-        std::ofstream test_file(test_filename);
-        ASSERT_TRUE(test_file.is_open());
-        test_file << ">read1\n";
-        test_file << "ACGT\n";
-        test_file << ">read2\n";
-        test_file << "TT\n";
-        test_file.close();
+        // S'assure que le fichier n'existe pas avant le test
+        if (fs::exists(temp_file)) {
+            fs::remove(temp_file);
+        }
     }
 
     void TearDown() override {
-        // Clean up the temporary file
-        std::remove(test_filename.c_str());
+        // Nettoyage après le test
+        if (fs::exists(temp_file)) {
+            fs::remove(temp_file);
+        }
+    }
+
+    // Crée un fichier FASTA avec le contenu donné
+    void createFasta(const std::string& content) {
+        std::ofstream out(temp_file);
+        out << content;
+        out.close();
     }
 };
 
-// Test case for a simple, known sequence
-TEST_F(ConvertTest, ProcessesSimpleSequenceCorrectly) {
+// --- Tests ---
+
+TEST_F(ConvertTest, FileNotFoundError) {
     Convert converter;
-    // CORRECTION: Nom de méthode processFile
-    converter.processFile(test_filename);
-
-    // CORRECTION: Nom de méthode get_bitVector
-    const auto& bit_vec = converter.getBitVector();
-    const auto& end_pos = converter.getEndPos();
-
-    // --- Check Read End Positions ---
-    // We expect two reads
-    ASSERT_EQ(end_pos.size(), 2);
-    // Read 1: "ACGT" -> 4 nucleotides * 2 bits/nuc = 8 bits
-    EXPECT_EQ(end_pos[0], 8);
-    // Read 2: "TT" -> 2 nucleotides * 2 bits/nuc = 4 bits
-    // Total bits = 8 (from read 1) + 4 (from read 2) = 12
-    EXPECT_EQ(end_pos[1], 12);
-
-    // --- Check Bit Vector Content ---
-    ASSERT_EQ(bit_vec.size(), 12);
-
-    // Expected:
-    // Read 1: A=00, C=10, G=01, T=11 -> 00100111
-    // Read 2: T=11, T=11             -> 1111
-    // Total: 001001111111
-    std::vector<bool> expected_vec = {
-        // Read 1: ACGT
-        false, false, // A (00)
-        true,  false, // C (10)
-        false, true,  // G (01)
-        true,  true,  // T (11)
-        // Read 2: TT
-        true,  true,  // T (11)
-        true,  true   // T (11)
-    };
-
-    EXPECT_EQ(bit_vec.to_vector(), expected_vec);
+    // On essaie de lire un fichier qui n'existe pas (SetUp nettoie tout)
+    EXPECT_THROW(converter.processFile("non_existent_ghost_file.fasta"), std::runtime_error);
 }
 
-// Test case for loading one of the real FASTA files
-TEST(ConvertLoadTest, LoadsRealFastaFile) {
+TEST_F(ConvertTest, SingleReadSimple) {
+    Convert converter;
+    // >header
+    // ACGT
+    createFasta(">seq1\nACGT");
+
+    converter.processFile(temp_file);
+
+    // Vérification du BitVector
+    // ACGT -> 4 nucléotides -> 8 bits
+    const BitVector& bv = converter.getBitVector();
+    EXPECT_EQ(bv.size(), 8);
+    EXPECT_EQ(bv.readBitVector(), "ACGT");
+
+    // Vérification des positions de fin (endPos)
+    const std::vector<size_t>& ends = converter.getEndPos();
+    ASSERT_EQ(ends.size(), 1);
+    EXPECT_EQ(ends[0], 8); // La lecture finit au bit 8
+}
+
+TEST_F(ConvertTest, MultiLineSequence) {
+    Convert converter;
+    // FASTA permet de couper les séquences sur plusieurs lignes
+    // >seq1
+    // AC
+    // GT
+    createFasta(">seq1\nAC\nGT");
+
+    converter.processFile(temp_file);
+
+    const BitVector& bv = converter.getBitVector();
+    EXPECT_EQ(bv.readBitVector(), "ACGT");
+
+    const std::vector<size_t>& ends = converter.getEndPos();
+    ASSERT_EQ(ends.size(), 1);
+    EXPECT_EQ(ends[0], 8);
+}
+
+TEST_F(ConvertTest, MultipleReads) {
+    Convert converter;
+    // >r1 (AC -> 4 bits)
+    // AC
+    // >r2 (TG -> 4 bits)
+    // TG
+    // >r3 (A -> 2 bits)
+    // A
+    createFasta(">r1\nAC\n>r2\nTG\n>r3\nA");
+
+    converter.processFile(temp_file);
+
+    const BitVector& bv = converter.getBitVector();
+    // Total : AC + TG + A = "ACGTA" (5 nucs -> 10 bits)
+    EXPECT_EQ(bv.readBitVector(), "ACTGA"); // AC TG A
+    EXPECT_EQ(bv.size(), 10);
+
+    // Vérification endPos (cumulatif)
+    const std::vector<size_t>& ends = converter.getEndPos();
+    ASSERT_EQ(ends.size(), 3);
+
+    EXPECT_EQ(ends[0], 4);  // Fin de r1 (AC) à 4 bits
+    EXPECT_EQ(ends[1], 8);  // Fin de r2 (TG) à 4+4=8 bits
+    EXPECT_EQ(ends[2], 10); // Fin de r3 (A) à 8+2=10 bits
+}
+
+TEST_F(ConvertTest, IgnoreWhitespaceAndEmptyLines) {
+    Convert converter;
+    // Test robustesse parsing : espaces dans la séquence, lignes vides
+    // >seq1
+    // A C
+    //
+    // G T
+    createFasta(">seq1\nA C\n\n\nG T");
+
+    converter.processFile(temp_file);
+
+    EXPECT_EQ(converter.getBitVector().readBitVector(), "ACGT");
+}
+
+TEST_F(ConvertTest, ResetBetweenFiles) {
     Convert converter;
 
-    // Path relative to the build directory where 'run_tests' is executed
-#ifndef TEST_DATA_DIR
-    // Fallback if macro not defined
-    std::string real_fasta_path = "Tests_Et_Ref/minia.contigs.fa";
-#else
-    std::string real_fasta_path = std::string(TEST_DATA_DIR) + "/minia.contigs.fa";
-#endif
+    // Passe 1 : Fichier A
+    createFasta(">s1\nAA"); // 4 bits
+    converter.processFile(temp_file);
+    EXPECT_EQ(converter.getBitVector().size(), 4);
+    EXPECT_EQ(converter.getEndPos().size(), 1);
 
-    // Check if file exists before trying to open, to give a better error
-    std::ifstream f(real_fasta_path);
-    ASSERT_TRUE(f.good()) << "Test file not found at: " << real_fasta_path
-                          << ". Make sure you are running tests from the 'build' directory.";
-    f.close();
+    // Passe 2 : Fichier B (réutilisation de l'objet Convert)
+    // L'objet doit se vider avant de traiter le nouveau fichier
+    createFasta(">s2\nCC\n>s3\nGG"); // 4 + 4 = 8 bits
+    converter.processFile(temp_file);
 
+    const BitVector& bv = converter.getBitVector();
+    const std::vector<size_t>& ends = converter.getEndPos();
 
-    // Process the file
-    // CORRECTION: Nom de méthode processFile
-    ASSERT_NO_THROW(converter.processFile(real_fasta_path));
+    // Ne doit contenir QUE les données du Fichier B (CCGG)
+    EXPECT_EQ(bv.size(), 8);
+    EXPECT_EQ(bv.readBitVector(), "CCGG");
 
-    // CORRECTION: Nom de méthode get_bitVector
-    const auto& bit_vec = converter.getBitVector();
-    const auto& end_pos = converter.getEndPos();
+    ASSERT_EQ(ends.size(), 2);
+    EXPECT_EQ(ends[0], 4);
+    EXPECT_EQ(ends[1], 8);
+}
 
-    // Basic sanity checks for a real file
-    EXPECT_GT(bit_vec.size(), 0);
-    EXPECT_GT(end_pos.size(), 0);
+TEST_F(ConvertTest, EmptyFile) {
+    Convert converter;
+    createFasta(""); // Fichier vide
 
-    // The size of the full bit vector should be equal to the last end position
-    EXPECT_EQ(bit_vec.size(), end_pos.back());
+    converter.processFile(temp_file);
+
+    EXPECT_EQ(converter.getBitVector().size(), 0);
+    EXPECT_EQ(converter.getEndPos().size(), 0);
 }

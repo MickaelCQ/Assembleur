@@ -1,126 +1,175 @@
 #include "gtest/gtest.h"
-#include "compare.h" // Inclut notre classe modifiée
+#include "compare.h"
+#include "bitvector.h"
 #include <vector>
+#include <string>
 #include <stdexcept>
 
-// Helper: convert std::vector<bool> literal to BitVector for easy test migration
-static BitVector bv_from_vector(const std::vector<bool>& v) {
+// --- Helper : Construction facile ---
+// Construit un BitVector et le vecteur endPos à partir d'une liste de chaînes (lectures)
+class CompareTest : public ::testing::Test {
+protected:
     BitVector bv;
-    bv.reserve(v.size());
-    for (bool b : v) bv.push_back(b);
-    return bv;
-}
+    std::vector<size_t> reads;
 
-// A=00, C=10, G=01, T=11
+    // Prépare les données pour le test
+    void setupReads(const std::vector<std::string>& sequences) {
+        bv = BitVector();
+        reads.clear();
 
-TEST(CompareKMersTest, GettersAndSetters) {
-    // Read 1: "AC" -> {0,0, 1,0, 0,1}
-    // Read 2: "GT" -> {0,1, 1,1}
-    std::vector<bool> raw_bv = {false, false, true, false, false, true, true, true};
-    std::vector<size_t> re = {4, 8}; // Fin de R1 à 4 bits, fin de R2 à 8 bits
-    BitVector bb = bv_from_vector(raw_bv);
-    CompareKMers comp(bb, re, 2); // k=2
+        for (const std::string& seq : sequences) {
+            for (char c : seq) {
+                bv.addCha(c);
+            }
+            reads.push_back(bv.size());
+        }
+    }
+};
 
-    EXPECT_EQ(comp.get_kmersize(), 2);
+// --- Tests des Getters / Setters / Calculs de base ---
 
-    // CORRECTION: get_nReads
-    EXPECT_EQ(comp.get_nReads(), 2);
+TEST_F(CompareTest, KmerCountingLogic) {
+    // Setup : 3 lectures
+    // R1: "ACGT" (4bp)
+    // R2: "A"    (1bp)
+    // R3: "AAAAA"(5bp)
+    setupReads({"ACGT", "A", "AAAAA"});
 
-    // CORRECTION: get_bitVector
-    EXPECT_EQ(comp.get_bitVector().to_vector(), raw_bv);
-    EXPECT_EQ(comp.get_reads(), re);
+    CompareKMers comp(bv, reads, 3); // k=3
 
-    comp.set_kmersize(3);
-    EXPECT_EQ(comp.get_kmersize(), 3);
-}
+    // R1 (4bp) -> 4 - 3 + 1 = 2 k-mers
+    EXPECT_EQ(comp.get_nKmers(0), 2);
 
-TEST(CompareKMersTest, ReadAndKmerCounting) {
-    // Read 1: "ACG" -> {0,0, 1,0, 0,1}
-    // Read 2: "T"   -> {1,1}
-    // Read 3: "CGTA"-> {1,0, 0,1, 1,1, 0,0}
-    std::vector<bool> raw_bv = {
-        false, false, true, false, false, true, // ACG (6)
-        true, true,                             // T (2)
-        true, false, false, true, true, true, false, false // CGTA (8)
-    };
-    std::vector<size_t> re = {6, 8, 16}; // Positions de fin: 6, 8, 16
-    BitVector bb = bv_from_vector(raw_bv);
-    CompareKMers comp(bb, re, 3); // k=3
-
-    // Test get_read_end_pos
-    EXPECT_EQ(comp.get_read_end_pos(0), 6);
-    EXPECT_EQ(comp.get_read_end_pos(1), 8);
-    EXPECT_EQ(comp.get_read_end_pos(2), 16);
-    EXPECT_THROW(comp.get_read_end_pos(3), std::out_of_range);
-
-    // Test get_nKmers (k=3)
-    // Read 1 ("ACG"): 3 nucs. (3 - 3 + 1) = 1 k-mer
-    // CORRECTION: get_nKmers
-    EXPECT_EQ(comp.get_nKmers(0), 1);
-    // Read 2 ("T"): 1 nuc. (1 < 3) = 0 k-mers
+    // R2 (1bp) -> 1 < 3 -> 0 k-mers
     EXPECT_EQ(comp.get_nKmers(1), 0);
-    // Read 3 ("CGTA"): 4 nucs. (4 - 3 + 1) = 2 k-mers
-    EXPECT_EQ(comp.get_nKmers(2), 2);
 
-    // Test get_all_nKmers
-    // CORRECTION: get_all_nKmers
-    EXPECT_EQ(comp.get_all_nKmers(), 1 + 0 + 2); // 3 k-mers au total
+    // R3 (5bp) -> 5 - 3 + 1 = 3 k-mers
+    EXPECT_EQ(comp.get_nKmers(2), 3);
+
+    // Total : 2 + 0 + 3 = 5
+    EXPECT_EQ(comp.get_all_nKmers(), 5);
 }
 
-TEST(CompareKMersTest, CompareLine) {
-    // k=3, donc chevauchement k-1 = 2
-    // K-mer 1: "ACG" -> {0,0, 1,0, 0,1} (idx 0)
-    // K-mer 2: "CGT" -> {1,0, 0,1, 1,1} (idx 6)
-    // K-mer 3: "CGA" -> {1,0, 0,1, 0,0} (idx 12)
-    std::vector<bool> raw_bv = {
-        false, false, true, false, false, true, // ACG
-        true, false, false, true, true, true,  // CGT
-        true, false, false, true, false, false  // CGA
-    };
-    std::vector<size_t> re = {18}; // Une seule longue lecture
-    BitVector bb = bv_from_vector(raw_bv);
-    CompareKMers comp(bb, re, 3);
+TEST_F(CompareTest, ReadEndPositions) {
+    setupReads({"AC", "GT"}); // 2bp (4 bits), 2bp (4 bits)
+    CompareKMers comp(bv, reads);
 
-    // Compare "ACG" (idx 0) et "CGT" (idx 6)
-    // Chevauchement: "CG" vs "CG". Doit matcher (1).
-    EXPECT_EQ(comp.compare_line(0, 6), 1);
-
-    // Compare "ACG" (idx 0) et "CGA" (idx 12)
-    // Chevauchement: "CG" vs "CG". Doit matcher (1).
-    EXPECT_EQ(comp.compare_line(0, 12), 1);
-
-    // Compare "CGT" (idx 6) et "CGA" (idx 12)
-    // Chevauchement: "GT" vs "CG". Ne doit pas matcher (0).
-    EXPECT_EQ(comp.compare_line(6, 12), 0);
+    EXPECT_EQ(comp.get_nReads(), 2);
+    EXPECT_EQ(comp.get_read_end_pos(0), 4);       // Fin R1
+    EXPECT_EQ(comp.get_read_end_pos(1), 8);       // Fin R2 (4+4)
+    EXPECT_THROW(comp.get_read_end_pos(2), std::out_of_range);
 }
 
-TEST(CompareKMersTest, CompareLinesAndAll) {
-    // k=3
-    // Read 0: "ACG" -> {0,0, 1,0, 0,1} (Début: 0)
-    // Read 1: "CGT" -> {1,0, 0,1, 1,1} (Début: 6)
-    // Read 2: "CGA" -> {1,0, 0,1, 0,0} (Début: 12)
-    std::vector<bool> raw_bv = {
-        false, false, true, false, false, true, // ACG
-        true, false, false, true, true, true,  // CGT
-        true, false, false, true, false, false  // CGA
-    };
-    std::vector<size_t> re = {6, 12, 18};
-    BitVector bb = bv_from_vector(raw_bv);
-    CompareKMers comp(bb, re, 3);
+// --- Tests de la Logique de Comparaison (Overlap) ---
 
-    // Test compare_lines(0) (Compare "ACG" à tous)
-    std::vector<size_t> expected0 = {1, 1, 1};
-    EXPECT_EQ(comp.compare_lines(0), expected0);
+/**
+ * IMPORTANT : Analyse de compare_line dans compare.cpp
+ * La boucle compare :
+ * bit_idx1 + (i + 1) * 2   VS   bit_idx2 + i * 2
+ * * Cela signifie qu'on compare le SUFFIXE du k-mer 1 (commençant à l'index 1)
+ * avec le PREFIXE du k-mer 2 (commençant à l'index 0).
+ * C'est une détection de chevauchement (De Bruijn Edge), pas une égalité stricte.
+ */
+TEST_F(CompareTest, CompareLine_OverlapDetection) {
+    // k=3. On compare k-1 = 2 nucléotides.
+    // R0: "ACG" (Suffixe k-1 : CG)
+    // R1: "CGT" (Prefixe k-1 : CG)
+    // R2: "TGC"
+    setupReads({"ACG", "CGT", "TGC"});
+    CompareKMers comp(bv, reads, 3);
 
-    // Test compare_lines(1) (Compare "CGT" à tous)
-    std::vector<size_t> expected1 = {0, 1, 0};
-    EXPECT_EQ(comp.compare_lines(1), expected1);
+    size_t posR0 = 0;
+    size_t posR1 = 6;  // 3 nucs * 2 bits = 6
+    size_t posR2 = 12; // 6 + 6 = 12
 
-    // Test compare_all()
-    std::vector<std::vector<size_t>> expected_all_final = {
-        {1, 1, 1},
-        {0, 1, 0},
-        {0, 0, 1}
-    };
-    EXPECT_EQ(comp.compare_all(), expected_all_final);
+    // Cas 1 : Match (ACG -> CGT)
+    // Le suffixe de R0 ("CG") == Préfixe de R1 ("CG")
+    EXPECT_EQ(comp.compare_line(posR0, posR1), 1);
+
+    // Cas 2 : Mismatch Inverse (CGT -> ACG)
+    // Le suffixe de R1 ("GT") != Préfixe de R0 ("AC")
+    EXPECT_EQ(comp.compare_line(posR1, posR0), 0);
+
+    // Cas 3 : Chaine (CGT -> TGC)
+    // Suffixe R1 ("GT") == Préfixe R2 ("TG") ? NON.
+    // Suffixe R1 est "GT". Préfixe R2 est "TG". Ça ne matche pas.
+    // "CGT" -> "GT". "TGC" -> "TG".
+    EXPECT_EQ(comp.compare_line(posR1, posR2), 0);
+
+    // Cas 4 : Vrai Match pour R1->R2 si on change les données
+    // Si R1="CGT" et Rnew="GTA"
+    // Suffixe R1 "GT", Prefixe Rnew "GT" -> Match.
+}
+
+TEST_F(CompareTest, CompareLine_ExactLogic) {
+    // Vérification plus fine bit à bit
+    // R1: AAAA (k=3 -> AAA). Suffixe AA
+    // R2: AAAT (k=3 -> AAA). Préfixe AA
+    setupReads({"AAAA", "AAAT"});
+    CompareKMers comp(bv, reads, 3);
+
+    // R1 start=0. R2 start=8 (4 nucs * 2 bits).
+    // Overlap : R1(AAA) -> R2(AAA) ?
+    // Suffixe R1 (AA) == Prefixe R2 (AA). OUI.
+    EXPECT_EQ(comp.compare_line(0, 8), 1);
+}
+
+// --- Tests de Compare Lines (1 vs Tous) ---
+
+TEST_F(CompareTest, CompareLines_VectorResult) {
+    // k=3 (Overlap k-1 = 2)
+    // R0: "ACG" -> Suffix "CG"
+    // R1: "CGT" -> Prefix "CG" (Match avec R0)
+    // R2: "CGA" -> Prefix "CG" (Match avec R0)
+    // R3: "TGC" -> Prefix "TG" (Pas de match avec R0)
+    setupReads({"ACG", "CGT", "CGA", "TGC"});
+    CompareKMers comp(bv, reads, 3);
+
+    // On compare R0 contre tout le monde
+    std::vector<size_t> results = comp.compare_lines(0);
+
+    ASSERT_EQ(results.size(), 4);
+
+    EXPECT_EQ(results[0], 1); // R0 vs R0 (Auto-comparaison est forcée à 1 dans le code)
+    EXPECT_EQ(results[1], 1); // R0 -> R1 (CG == CG) : OUI
+    EXPECT_EQ(results[2], 1); // R0 -> R2 (CG == CG) : OUI
+    EXPECT_EQ(results[3], 0); // R0 -> R3 (CG != TG) : NON
+}
+
+// --- Tests de Compare All (Matrice N x N) ---
+
+TEST_F(CompareTest, CompareAll_Matrix) {
+    // k=2 (Overlap k-1 = 1 nucléotide)
+    // R0: "AC" (Suffixe 'C')
+    // R1: "CG" (Préfixe 'C') -> R0 connecte à R1
+    // R2: "GT" (Préfixe 'G') -> R1 connecte à R2
+    setupReads({"AC", "CG", "GT"});
+    CompareKMers comp(bv, reads, 2);
+
+    auto matrix = comp.compare_all();
+
+    /* Matrice attendue :
+       Src \ Dest | R0(AC) | R1(CG) | R2(GT)
+       -----------+--------+--------+-------
+       R0 (Suf C) |   1    |   1    |   0   (C==A?No, C==C?Yes, C==G?No)
+       R1 (Suf G) |   0    |   1    |   1   (G==A?No, G==C?No, G==G?Yes)
+       R2 (Suf T) |   0    |   0    |   1
+
+       Note: La diagonale est toujours 1 par définition dans le code.
+    */
+
+    // Ligne 0 (Source R0)
+    EXPECT_EQ(matrix[0][0], 1);
+    EXPECT_EQ(matrix[0][1], 1); // Match
+    EXPECT_EQ(matrix[0][2], 0);
+
+    // Ligne 1 (Source R1)
+    EXPECT_EQ(matrix[1][0], 0);
+    EXPECT_EQ(matrix[1][1], 1);
+    EXPECT_EQ(matrix[1][2], 1); // Match
+
+    // Ligne 2 (Source R2)
+    EXPECT_EQ(matrix[2][0], 0);
+    EXPECT_EQ(matrix[2][1], 0);
+    EXPECT_EQ(matrix[2][2], 1);
 }
