@@ -38,11 +38,13 @@ args = [
     { "arg" = "output", "default" = "./data/reads.fasta" }]
 cmd = "sed ':a;N;$!ba;s/+\\n/+/g' {{ input }} | grep -v \"^+\" | sed \"s/@/>/g\" > {{ output }}"
 
-[feature.memcheck.tasks._build_debug]
+[tasks._build_debug]
 cmd = "rm -r build && cmake -B build -DCMAKE_BUILD_TYPE=Debug && cmake --build build"
+depends-on = ["_preparedir"]
 
 [feature.memcheck.tasks.check_memory]
 cmd = "valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes build/ramilass data/reads.fasta --fuse"
+depends-on = ["_build_debug"]
 description = "Check memory leaks using Valgrind"
 
 [dependencies]
