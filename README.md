@@ -75,30 +75,36 @@ Par défaut, `pixi run tofasta` sans argument va convertir `Tests_Et_Ref/reads.f
 ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝
 
     
-Usage: ./build/ramilass <input.fasta> <output_prefix> [OPTIONS]
+Usage: ./build/ramilass <input.fasta> [output_dir] [OPTIONS]
 
-Arguments obligatoires:
+Arguments:
   <input.fasta>        Fichier contenant les lectures (FASTA)
-  <output_prefix>      Prefixe pour les fichiers de sortie
+  [output_dir]         Dossier de sortie (Optionnel, defaut: .)
 
 Options Generales:
+  -o, --out-name <str> Nom de base pour les fichiers de sortie
   -k <int>             Taille des k-mers (defaut: 31)
   --fuse               Activer l'etape de fusion des contigs (defaut: inactif)
-  --gfa                Exporter le graphe au format GFA (defaut: non)
+  --gfa                Exporter le graphe au format GFA
+  --min-len <int>      Taille minimale des contigs exportes (defaut: 62)
   --debug              Afficher les temps d'execution et infos detailles
-  --help, -h           Afficher ce message
+
+Options de Fusion (--fuse):
+  --overlap-err <dbl>    % d'erreur autorise pour chevauchement (defaut: 0.05)
+  --contained-err <dbl>  % d'erreur autorise pour inclusion (defaut: 0.02)
+  --max-scan-depth <int> Profondeur scan extension (defaut: 5000)
+  --max-seed-depth <int> Profondeur recherche seed (defaut: 1500)
 
 Options de l'Assembleur (GraphDBJ):
-  --simplification-passes <int>       Nb max de passes de simplification (defaut: 50)
-  --popping-passes <int>        Nb max de passes de suppression de tips et bulle (defaut: 10)
+  --simplification-passes <int> Nb max de passes de simplification (defaut: 50)
+  --popping-passes <int>        Nb max de passes de suppression de tips/bulles (defaut: 1)
+  --cov-ratio <dbl>      Ratio de couverture pour bifurcations (defaut: 1)
+  --tip-topo-ratio <dbl> Ratio couverture pour Tip Topologique (defaut: 2.5)
+  --tip-rctc-ratio <dbl> Ratio couverture pour Tip RCTC (defaut: 5)
+  --search-depth <dbl>   Facteur de profondeur de recherche (defaut: 20)
+  --min-cov <int>        Couverture min. pour garder un k-mer (defaut: 1)
+  --max-contig-len <int> Longueur max d'un contig genere (defaut: 1000000)
 
-  --overlap-err <dbl>  % d'erreur autorise pour chevauchement (defaut: 0.05)
-  --contained-err <dbl>% d'erreur autorise pour inclusion (defaut: 0.02)
-
-  --cov-ratio <dbl>    Ratio de couverture pour bifurcations (defaut: 1)
-  --tip-ratio <dbl>    Ratio couverture ancrage/bout (defaut: 2)
-
-  --search-depth <dbl> Facteur de profondeur de recherche (defaut: 20)
 ```
 
 Pour lancer l'application principale :
