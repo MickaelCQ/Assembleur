@@ -5,7 +5,7 @@ platforms = ["linux-64"]
 version = "0.1.0"
 
 [tasks._preparedir]
-cmd = "mkdir -p build && rm -rf build/*"
+cmd = "mkdir -p build && rm -rf build"
 
 [tasks._configure]
 cmd = "cmake -S . -B build"
@@ -86,13 +86,6 @@ description = "Generate plots from benchmark results"
 
 [feature.container.dependencies]
 apptainer = "*"
-
-[feature.container.tasks.build_container]
-cmd = "apptainer build --force pixigularity.sif pixigularity.def"
-description = "Build Apptainer container"
-
-[feature.container.tasks.run_container]
-cmd = "apptainer exec --bind $INIT_CWD/data:/data pixigularity.sif /app/build/ramilass /data/reads.fasta output --fuse --gfa --debug --max-contig-len 11000 --popping-passes 0"
 
 [environments]
 plot = { features = ["plot"], no-default-feature = true }

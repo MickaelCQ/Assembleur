@@ -121,13 +121,12 @@ Pour avoir une execution complète, nous recommandons d'utiliser `pixi run start
 ## BONUS: Image singularity/apptainer
 
 Nous fournissons une image apptainer/singularity pour exécuter l'assembleur dans un environnement isolé.
-Cette dernière est construite avec `pixi run build_container` puis exécutée avec `pixi run run_container`.
-Cette denière exécute la commande suivante :
+Cette dernière est construite avec `pixi run apptainer build ramilass.sif pixigularity.def`.
+Pour réaliser la commande équivalente à `pixi run start` avec l'image apptainer, vous pouvez utiliser la commande suivante :
 
 ```bash
 pixi run apptainer exec --bind $INIT_CWD/data:/data pixigularity.sif /app/build/ramilass /data/reads.fasta output --fuse --gfa --debug --max-contig-len 11000 --popping-passes 0
 ```
-
 Pour faire tourner l'outil depuis l'image avec vos propres paramètres, vous pouvez utiliser la commande suivante :
 
 ```bash
