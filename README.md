@@ -136,7 +136,7 @@ pixi run apptainer build ramilass.sif pixigularity.def
 Pour réaliser la commande équivalente à `pixi run start` avec l'image apptainer, vous pouvez utiliser la commande suivante :
 
 ```bash
-pixi run apptainer exec --bind data:/data pixigularity.sif \
+pixi run apptainer exec --bind data:/data ramilass.sif \
         /app/build/ramilass /data/reads.fasta output \
         --fuse --gfa --debug \
         --max-contig-len 11000 --popping-passes 0
@@ -144,5 +144,5 @@ pixi run apptainer exec --bind data:/data pixigularity.sif \
 Pour faire tourner l'outil depuis l'image avec vos propres paramètres, vous pouvez utiliser la commande suivante :
 
 ```bash
-pixi run apptainer exec --bind path/to/your/data:/data pixigularity.sif /app/build/ramilass /data/your_reads.fasta [OPTIONS]
+pixi run apptainer exec --bind path/to/your/data:/data ramilass.sif /app/build/ramilass /data/your_reads.fasta [OPTIONS]
 ```
