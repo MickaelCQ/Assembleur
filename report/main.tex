@@ -1,0 +1,310 @@
+% !TEX option = -shell-escape
+\documentclass[a4paper,11pt]{article}
+
+% --- Langue et encodage ---
+\usepackage[french,english]{babel} % Langue du document
+\usepackage[T1]{fontenc} % Codage des caractères pour la gestion des accents
+\usepackage[utf8]{inputenc} % Encodage UTF-8
+
+% --- Mise en page ---
+\usepackage[left=1cm,right=1cm,top=1.7cm,bottom=1.6cm]{geometry} % Gestion des marges
+\usepackage{setspace} % Gestion des espaces interlignes
+\usepackage{titlesec} % Personnalisation des titres de sections
+\usepackage{titling} % Personnalisation du titre
+\usepackage{fancyhdr} % Personnalisation des en-têtes et pieds de page
+\usepackage{paracol} % Diviser la page en colonnes
+\usepackage[bottom]{footmisc} % note bas de page
+\addtolength{\skip\footins}{20pt}  % Ajuste la valeur selon tes besoins
+
+% --- Mathématiques ---
+\usepackage{mathtools} % Paquet pour des équations et symboles mathématiques
+\usepackage{caption}
+%--Graphiques 3 dimensions --
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{pgfplotstable}
+
+\usepackage{siunitx} % Écriture avec la notation scientifique
+
+% --- Flottants et images ---
+\usepackage[section]{placeins} % Forcer les flottants à rester dans les sections
+\usepackage{graphicx} % Insérer des images
+\usepackage[justification=centering]{caption} % Légendes centralisées
+\usepackage{subcaption} % Sous-légendes pour des figures
+% Redéfinition du style des légendes
+\DeclareCaptionLabelFormat{blue}{\textcolor{bleumarine}{#1~#2:}}
+\captionsetup{
+    labelfont={color=bleumarine,bf}, % Couleur et gras pour le texte
+    labelformat=blue % Format défini pour les légendes
+}
+\usepackage{wallpaper} % Utiliser des fonds ou des images de fond
+\usepackage{wrapfig} % Mise en page personnalisée pour les images
+
+% --- Tableaux ---
+\usepackage{array,multirow,makecell} % Personnalisation avancée des tableaux
+\usepackage{booktabs} % Amélioration des tables (lignes fines, moyennes, épaisses)
+\usepackage{adjustbox}
+\usepackage{colortbl} % Coloration des cellules de tableaux
+\usepackage{xcolor} % Couleur des tableaux   
+\usepackage{diagbox} % Pour créer des cellules en diagonale
+\usepackage{longtable} % Tables sur plusieurs pages
+
+% --- Code source ---
+\usepackage{minted} % Mise en forme de code source avec coloration syntaxique
+\usepackage{listings} % Insertion et mise en forme du code source
+\usepackage{everypage}
+
+% --- Bibliographie et références ---
+\usepackage[backend=biber]{biblatex} % Gestion de la bibliographie
+\addbibresource{reference.bib}
+\usepackage{csquotes} % Gestion des guillemets typographiques
+\usepackage{hyperref} % Liens hypertexte sans surlignage
+\usepackage{cleveref} % Références intelligentes
+
+% --- Textes et acronymes ---
+\usepackage{lipsum} % Générer du texte de remplissage
+\usepackage{acro} % Gestion des acronymes
+\usepackage{nomencl} % Création d'une nomenclature (glossaire)
+\makenomenclature % Commande pour générer la nomenclature
+
+% --- Dessins et graphiques ---
+\usepackage{tikz} % Nécessaire pour smartdiagram
+\usetikzlibrary{shapes.geometric, arrows.meta, calc, positioning,shadows}
+\usepackage{eso-pic} % Gestion d'images en arrière-plan
+\usepackage{tcolorbox} % Création de boîtes de couleur pour des équations ou du texte
+\usepackage{smartdiagram} % Créer les figures simplement
+\usesmartdiagramlibrary{additions} %Dépendances smartdiagram
+\usepackage{graphicx} % Package nécessaire pour inclure des images
+\usetikzlibrary{trees}
+
+% --- Divers ---
+\usepackage{appendix} % Gérer les annexes
+\usepackage{multicol} % Texte en colonnes
+\usepackage{lastpage} % Référence à la dernière page
+\usepackage{ragged2e} % Justification d'un texte à l'intérieur d'un parbox
+\usepackage{xcolor}
+\usepackage{algorithm2e}
+\usepackage{amsmath, amssymb}
+\usepackage{setspace}
+\usepackage{url}
+% --- Couleurs ---
+\definecolor{bleumarine}{RGB}{20,40,160}
+\definecolor{red}{RGB}{139,0,0}
+\definecolor{vert}{RGB}{0,100,0}
+\definecolor{gris}{RGB}{100,100,100}
+
+% Formatage des section
+
+\titleformat{\section}[block]
+  {\normalfont\Large\bfseries\rmfamily\color{bleumarine}} % Police, taille, graisse et couleur
+  {\thesection}{1em}{}[\titlerule] % Numérotation et ligne sous le titre
+\titlespacing{\section}{5pt}{10pt}{10pt} % Espacement avant et après
+\renewcommand{\labelitemi}{\textemdash}
+% Formatage des sous-sections
+\titleformat{\subsection}[block]
+  {\normalfont\large\bfseries\rmfamily\color{bleumarine}} % Police, taille, graisse et couleur
+  {\thesubsection}{1em}{} % Numérotation
+\titlespacing{\subsection}{5pt}{8pt}{5pt} % Espacement avant et après
+
+% Formatage des sous-sous-sections
+\titleformat{\subsubsection}[block]
+  {\normalfont\normalsize\bfseries\rmfamily\color{bleumarine}} % Police, taille, graisse et couleur
+  {\thesubsubsection}{1em}{} % Numérotation
+\titlespacing{\subsubsection}{5pt}{8pt}{5pt} % Espacement avant et après
+
+% Redéfinir ma commande \bibliography pour personnaliser les liens
+\usepackage{etoolbox}
+\pretocmd{\bibliography}{%
+  \hypersetup{
+    colorlinks=true,  % Active les liens colorés
+    linkcolor=black,   % Lien dans le texte
+    urlcolor=black,    % Lien URL dans la bibliographie
+    filecolor=black    % Lien vers les fichiers
+  }%
+}{}{}
+\hypersetup{
+    citecolor=darkblue,  % Couleur des références dans le texte
+}
+%---------------------------Diagramme de conclusion ----------------------------------------
+% Définition de la mise en forme listing (pour l'intégration des codes et pseudoCode)
+\definecolor{background}{HTML}{F1F1F0}
+\definecolor{string}{HTML}{DD1144}
+\definecolor{keyword}{HTML}{0077AA}
+\definecolor{comment}{HTML}{44AA99}
+\definecolor{identifier}{HTML}{000000}
+\definecolor{framecolor}{HTML}{CCCCCC}  
+
+\lstset{
+  backgroundcolor=\color{background}, % Couleur de fond
+  basicstyle=\small\ttfamily, % Taille et police par défaut
+  keywordstyle=\color{blue}, % Mots-clés en bleu
+  commentstyle=\color{comment}, % Commentaires
+  stringstyle=\color{string}, % Chaînes de caractères
+  identifierstyle=\color{identifier}, % Identifiants
+  numbers=left, % Numérotation des lignes
+  numberstyle=\tiny\color{gray}, % Style de numérotation
+  language=bash, % Langage utilisé (bash)
+  frame=single, % Encadrement du code
+  rulecolor=\color{framecolor}, % Couleur du cadre
+  framesep=2pt, % Espacement autour du code
+  framerule=0.5pt, % Épaisseur du cadre
+  breaklines=true, % Retour à la ligne si le code est trop long
+  morekeywords={grep, cut, tr, efetch, nano, build, touch, apptainer, run, shell, mkdir, mv, ln, snakemake,git,clone,tree}, % Ajouter && comme un mot-clé
+  emph={\&\&}, % Emphases supplémentaires
+  emphstyle=\color{red}, % Met en rouge les opérateurs &&
+  inputencoding=utf8, % Encodage UTF-8 pour les caractères spéciaux
+  extendedchars=true, % Permet l'utilisation des caractères spéciaux
+  showstringspaces=false,
+  literate=%
+    {é}{{\'e}}1
+    {è}{{\`e}}1
+    {ê}{{\^e}}1
+    {ë}{{\¨e}}1
+    {à}{{\`a}}1
+    {ç}{{\c{c}}}1
+    {ù}{{\`u}}1
+    {û}{{\^u}}1
+    {î}{{\^i}}1
+    {ï}{{\¨i}}1
+    {ô}{{\^o}}1
+}
+
+\lstdefinestyle{cpp}{
+  language=C++,
+  morekeywords={struct, uint64_t, uint32_t, std, vector, bool, nullptr, size_t},
+  keywordstyle=\color{blue!80!black},
+  commentstyle=\color{green!60!black},
+}
+
+\usepackage{amsmath, amssymb}
+%_________________________ Définition de la bibliographie ____________________
+\title{Titre} %Titre du fichier
+
+% Définir un nouvel environnement de flottant 
+\newfloat{listing}{htbp}{lop}
+\floatname{listing}{Code}
+\newenvironment{lexique}{\begin{itemize}[itemsep=-5pt, left=0pt]}{\end{itemize}}
+
+%__________Montage de la table des abbréviation___________
+
+\setlength{\arrayrulewidth}{0.5mm}
+\setlength{\columnsep}{0.9cm}
+\renewcommand{\arraystretch}{0.9} % Ajuste l'espacement des lignes
+%_________________________ Montage du contour ____________________
+
+\AtBeginShipout{
+    \begin{tikzpicture}[remember picture, overlay]
+        \draw [line width=0.1mm,lightgray] 
+            ($(current page.north west) + (0.5cm,-0.5cm)$) 
+            rectangle 
+            ($(current page.south east) + (-0.5cm,0.5cm)$);
+    \end{tikzpicture}
+}
+%-------------------------------------------------------------------------------------------------
+%                              DEFINITIONS DU GLOSSAIRE 
+%-------------------------------------------------------------------------------------------------
+%________________________Définition de la mise en forme  des pieds de pages et en-tête ___________________
+%Définir un fond d'image pour les pages sauf la première
+\newcommand{\fairemarges}{
+    \makenomenclature
+    \pagestyle{fancy}
+    \fancyhf{} % Réinitialise les en-têtes et pieds de page
+
+    \setlength{\footskip}{-35pt} % Hauteur du pied de page
+    \setlength{\headheight}{10pt} % Hauteur de l'en-tête
+    \setlength{\headsep}{0pt} % Espacement entre l'en-tête et le texte 
+
+    % Pied de page gauche : seulement le numéro de page
+    \fancyfoot[L]{%
+        {\sffamily \Large \textbf{\thepage}}%
+    }
+    
+    % Pied de page droit : titre de section (optionnel)
+    \fancyfoot[R]{%
+        {\sffamily \normalsize \textit{\nouppercase{\leftmark}}}%
+    }
+
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0.3pt}
+    % Couleur des lignes
+    \renewcommand{\footrule}{{\color{bleumarine}\hrule width\headwidth height\footrulewidth \vskip-\footrulewidth}}
+    \renewcommand{\headrule}{{\color{bleumarine}\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}}
+}
+
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0.3pt}
+    % Couleur des lignes
+    \renewcommand{\footrule}{{\color{bleumarine}\hrule width\headwidth height\footrulewidth \vskip-\footrulewidth}}
+    \renewcommand{\headrule}{{\color{bleumarine}\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}}
+\usepackage{tocloft}  
+    
+\renewcommand{\contentsname}{Table des matières}  
+
+\renewcommand{\cftsecfont}{\normalfont\small\bfseries\color{bleumarine}}
+\renewcommand{\cftsubsecfont}{\normalfont\small\color{black}}
+\renewcommand{\cftsecpagefont}{\small\color{black}}
+\renewcommand{\cftsubsecpagefont}{\small\color{black}}
+\setlength{\cftbeforetoctitleskip}{0pt}
+\setlength{\cftaftertoctitleskip}{5pt}
+\setlength{\cftbeforesecskip}{2pt}
+\setlength{\cftbeforesubsecskip}{1pt}
+\setcounter{tocdepth}{2}
+
+\newcommand{\HideTOCPageNumbers}{%
+    % Supprime le numéro de page dans le TOC pour les sections et sous-sections
+    \renewcommand{\cftsecpagefont}{}     
+    \renewcommand{\cftsubsecpagefont}{}  
+    \renewcommand{\cftsecafterpnum}{}    
+    \renewcommand{\cftsubsecafterpnum}{} 
+}
+ 
+\fairemarges % Applique les marges et configurations
+
+\usepackage{algorithm2e}
+\usepackage{lmodern}
+\usepackage{setspace}
+
+% --- Configuration algorithm2e ---
+\SetKwInput{KwEntree}{\textcolor{bleumarine}{Entrée}}
+\SetKwInput{KwSortie}{\textcolor{bleumarine}{Sortie}}
+\SetKwInput{KwComplexite}{\textcolor{vert}{\textbf{Complexité}}}
+\SetKw{KwDebut}{Début}
+\SetKw{KwFin}{Fin}
+\SetKw{KwSi}{Si}
+\SetKw{KwFinSi}{FinSi}
+\SetKw{KwSinon}{Sinon}
+\SetKw{KwAlors}{Alors}
+\SetKw{KwPour}{Pour}
+\SetKw{KwFinPour}{FinPour}
+\SetKw{KwTantQue}{TantQue}
+\SetKw{KwFinTantQue}{FinTantQue}
+\SetKw{KwTantQue}{TantQue}
+\SetKw{KwRetourner}{\textcolor{red}{Retourner}}
+\SetKw{KwReinitialiser}{\textcolor{red}{Reinitaliser}}
+\SetKw{KwContinuer}{\textcolor{red}{Continuer}}
+\SetKw{KwSupprimer}{\textcolor{red}{Supprimer}}
+\SetKw{KwReserver}{\textcolor{red}{Reserver}} 
+\SetKw{KwAfficher}{Afficher}
+\SetKw{KwFaire}{Faire}
+\SetKw{KwSortir}{\textcolor{red}{Sortir}}
+\SetKw{KwOuvrir}{Ouvrir}
+\SetKw{KwFermer}{\textcolor{red}{Fermer}}
+\SetKw{KwAjouter}{\textcolor{red}{Ajouter}}
+\SetKw{KwChoisir}{\textcolor{red}{Choisir}}
+\SetKw{KwDans}{Dans}
+\SetKwProg{Fn}{Fonction}{}{}
+\SetKw{KwAllant}{allant de}
+\RestyleAlgo{ruled}
+\SetAlgoNlRelativeSize{-1}
+\DontPrintSemicolon
+\onehalfspacing
+
+\begin{document}
+\input{Partie_1_Page_de_garde}
+\input{PARTIE_3_Introduction}
+\input{PARTIE_4_Methode}
+\input{PARTIE_5_Résultats}
+\input{PARTIE_X_annexe}
+\renewcommand{\bibname}{Bibliographie compilée}  
+
+\end{document}

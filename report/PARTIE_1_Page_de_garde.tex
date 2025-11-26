@@ -1,50 +1,56 @@
-%___________________________ Montage de la page de garde ______________________________
+%___________________________ Page de garde élégante ____________________________
 
 \begin{titlepage}
-% Bande large et claire en arrière-plan
-%\begin{tikzpicture}[remember picture, overlay]
-    %\fill[gray!5] ($(current page.north west) + (0, -11cm)$) rectangle ($(current page.south east) + (1, 14cm)$);
-%\end{tikzpicture}    
+%-------------------- Fond et bandeau --------------------%
+\begin{tikzpicture}[remember picture, overlay]
+    % Bande horizontale claire en haut
+    \fill[gray!10] (current page.north west) rectangle ([yshift=-4cm]current page.north east);
+\end{tikzpicture}
 
-% Image de fond avec réglage de l'opacité et de l'échelle
-
+%-------------------- Logos --------------------%
 \begin{minipage}{0.31\textwidth}
     \centering
-    \includegraphics[height=2.5cm]{LOGOS/U_Montpellier.png} % Ajuste la hauteur
-\vspace{1mm}
-\end{minipage}
-\begin{minipage}{0.31\textwidth}
-    \centering
-    \includegraphics[height=2.5cm]{LOGOS/Master_Bioinfo.png} % Ajuste la hauteur
-    \vspace{1mm}
+    \includegraphics[height=2.5cm]{LOGOS/U_Montpellier.png}
 \end{minipage}%
 \begin{minipage}{0.31\textwidth}
     \centering
-    \includegraphics[height=2.4cm]{LOGOS/Fds.png} % Ajuste la hauteur
-    \vspace{1mm}
+    \includegraphics[height=2.5cm]{LOGOS/Master_Bioinfo.png}
+\end{minipage}%
+\begin{minipage}{0.31\textwidth}
+    \centering
+    \includegraphics[height=2.5cm]{LOGOS/Fds.png}
 \end{minipage}
-\vspace{5mm}
 
-\centering 
-{\scshape\LARGE Université de Montpellier \\ Projet Assemblage\par} % Nom de l'université
-    \vspace{2mm}
+\vspace{1cm}
 
-\vspace{2mm}
-{\Large\bfseries Projet assemblage\par}
-\vspace{4mm}
-\rule{\linewidth}{0.3 mm} \\[0.5 cm]
-\textbf{\large Auteurs :\\} \large Mickael Coquerelle \& Loik Galtier \& Raphael Ribes 
-\vspace{5mm} \\
-\textbf{\large Professeure :\\} \large Annie Chateau
-\rule{\linewidth}{0.3 mm} \\[0.5 cm]
-%---------------------------------------
-% GENERATION DE L'ABSTRACT % 
-%---------------------------------------%
+%-------------------- Titre principal --------------------%
+\begin{center}
+{\scshape\LARGE Université de Montpellier\par}
+\vspace{0.2cm}
+{\Large\bfseries Master de Bioinformatique\par}
+\vspace{0.5cm}
+{\huge\bfseries Projet d'Assemblage\par}
+\vspace{0.3cm}
+\rule{\linewidth}{0.5pt} % Ligne fine
+\vspace{0.5cm}
 
-\selectlanguage{french}
-\begin{abstract}
-blbolo
-\end{abstract}
-\vspace{5mm}
+%-------------------- Auteurs --------------------%
+\textbf{\large Auteurs :} \\
+\large Mickael Coquerelle \& Loik Galtier \& Raphael Ribes
+\vspace{0.5cm}
+
+%-------------------- Professeur --------------------%
+\textbf{\large Professeure :} \\
+\large Annie Chateau
+\vspace{0.8cm}
+
+%-------------------- Table des matières --------------------%
+\noindent
+\rule{\linewidth}{0.3pt}
+\begingroup
+\small % Taille de police plus petite pour la ToC
+\tableofcontents
+\endgroup
+\end{center}
 
 \end{titlepage}

@@ -1,6 +1,6 @@
 \subsubsection{La classe \texttt{graphdbj.cpp}}
 \textbf{\underline {La construction (dans les grandes lignes) :}}\\
-Dans cette partie, nous revenons sur les choix conceptuels de notre assembleur, l’objectif étant de répondre, nous l’espérons, au plus près des attendus du TP. Les différentes classes décrites s’articulent autour de la classe \texttt{GraphDBJ}, qui constitue le coeur du programme : création du graphe, simplification et recherche de chemin(s).Le constructeur du \emph{graphe de De Bruijn}, dans sa version synthétique :
+Dans cette partie, nous revenons sur les choix conceptuels de notre assembleur, l’objectif étant de répondre, nous l’espérons, au plus près des attendus du TP. Les différentes classes décrites s’articulent autour de la classe \texttt{GraphDBJ}, qui constitue le coeur du programme : création du graphe, simplification et recherche de chemin(s). Le constructeur du \emph{graphe de De Bruijn}, dans sa version synthétique :
 
 \begin{algorithm}[H]
 \textcolor{bleumarine}{\textbf{\caption{\textcolor{bleumarine}{constructGraph(converter, k)}}}}
@@ -36,160 +36,125 @@ Dans cette partie, nous revenons sur les choix conceptuels de notre assembleur, 
 \KwFin
 \end{algorithm}
 
-Le choix de représenter les noeuds comme des $(k-1)$-mers et les arêtes comme des transitions de taille $k+1$ s’appuie sur la formalisation du graphe étudiée en cours. Cette approche facilite également la détection d’erreurs structurées (tips, bulles), contrairement à l’approche par \textit{overlap} (cf. annexe), plus coûteuse. Dans l’algorithme  \texttt{constructGraph}, on effectue une conversion des k-mers en valeurs entières via \texttt{extractKmerValue()}. Cela a été l’une des premières difficultés rencontrées, notamment pour éviter les « débordements » et garantir la cohérence entre les brins \textit{forward} et \textit{reverse}. Dans la deuxième structure itérative, on génère simultanément le complément inverse en ajoutant les deux arêtes, comme discuté lors de la dernière séance de TP. Cela permet d’obtenir un graphe navigable quel que soit le sens de lecture. Cet aspect, facilement oublié, reste pourtant fondamental pour de vrais jeux de données. Ensuite, les noeuds et les arêtes sont exportés en GFA, permettant de représenter le graphe de contigs assemblés avec leur couverture (que nous exploitons dans les outils auxiliaires nous le verrons). Ces explications générales étant posées, nous vous proposons de rdétailler dans la suite de cette section certains aspects qui nous paraissent pertinents. \\
+Le choix de représenter les noeuds comme des $(k-1)$-mers et les arêtes comme des transitions de taille $k+1$ s’appuie sur la formalisation du graphe étudiée en cours. Cette approche facilite également la détection d’erreurs structurées (tips, bulles), contrairement à l’approche par \textit{overlap} (cf. annexe), plus coûteuse. Dans l’algorithme  \texttt{constructGraph}, on effectue une conversion des k-mers en valeurs entières via \texttt{extractKmerValue()}. Cela a été l’une des premières difficultés rencontrées, notamment pour éviter les « débordements » et garantir la cohérence entre les brins \textit{forward} et \textit{reverse}. Dans la deuxième structure itérative, on génère simultanément le complément inverse en ajoutant les deux arêtes, comme discuté lors de la dernière séance de TP. Cela permet d’obtenir un graphe navigable quel que soit le sens de lecture. Cet aspect est fondamental pour de vrais jeux de données. Ensuite, les noeuds et les arêtes sont exportés en GFA, permettant de représenter le graphe de contigs assemblés avec leur couverture (que nous exploitons dans les outils auxiliaires nous le verrons). Ces explications générales étant posées, nous vous proposons de rdétailler dans la suite de cette section certains aspects qui nous paraissent pertinents. \\
 
 \textbf{\underline{Simplification du Graphe :}}
 
 En générant nos contigs, nous nous sommes aperçus d’un certain nombre de problèmes à gérer pour obtenir des résultats réalistes, tant en quantité qu’en qualité des contigs. Dans ce sens, nous avons implémenté plusieurs méthodes pour nettoyer le graphe afin d’éliminer les éléments qui nous paraissaient, \textit{a priori}, artefactuels. Cette étape (appliquée dans le \texttt{main}) est orchestrée séquentiellement par deux fonctions de la classe \texttt{GraphDBJ}, jusqu’à stabilisation ou jusqu’à l’atteinte du nombre maximal de passes \texttt{max\_passes\_pop}.\\
 
-\begin{wrapfigure}{r}{0.45\textwidth}
+\begin{wrapfigure}{r}{0.50\textwidth}
     \centering
-    \includegraphics[width=0.95\linewidth]{IMAGES/Tip.png}
-    \caption{Illustration d'un tip dans le graphe d'assemblage.}
+    \includegraphics[width=0.6\linewidth]{IMAGES/Tip.png}
+    \caption{\underline{Illustration d'un tip dans le graphe d'assemblage.}}
     \label{fig:clipTips}
 \end{wrapfigure}
 
-Le premier problème qui nous parait essentiel à aborder aborder est la suppression des \textit{Tips}. Eliminer ces derniers, revient à dire : ecxlure les chemins terminaux courts dans le graphe. Ils sont générés, d'après la littérature, majoritairement par des erreurs de séquençage \textcolor{bleumarine}{REF À AJOUTER}. Pour être un peu plus formel (et scientifique au passage) chaque noeud terminal \(v \in V\), on remonte le chemin
-\(\mathcal{T} = (v_1, v_2, \dots, v_n)\) jusqu'au noeud d'ancrage \(a\), où se produit une bifurcation ou jusqu'à un seuil maximal de longueur matérialiser dans le code par  \(n \leq \texttt{RCTC\_MAX\_LEN}\), pour \textbf{Ratio de Couverture de Tip-To-Core}\\
-
-Pour gérer cela, on calcule alors la \og couverture moyenne du tip \fg :  
+Le premier problème qui nous parait essentiel à aborder est la \textbf{suppression des \textit{Tips}}. Cela revient à dire : exclure les chemins terminaux courts dans le graphe. Ils sont générés, d'après la littérature, majoritairement par des erreurs de séquençage. Pour chaque noeud terminal \(v \in V\), on remonte le chemin \(\mathcal{T} = (v_1, v_2, \dots, v_n)\) jusqu'au noeud d'ancrage \(a\), où se produit une bifurcation ou jusqu'à un un premier seuil de longueur matérialiser dans le code par \(n \leq \texttt{TOPO\_MAX\_LEN}\). Les \textit{tips} de cette taille seront alors considéré comme des erreur et déconnectés. Viens ensuite une phase de \og rédemption \fg  ou les \textit{tips} en dessous du seuil \(n \leq \texttt{RCTC\_MAX\_LEN}\), pour \textbf{Ratio de Couverture de Tip-To-Core}~(RCTC) et avec une couverture moyenne inférieure à celle du k-mer d'ancrage sont déconnecté. Cette approche élégante est tirée de l'algorithme de \texttt{minia}\textsuperscript{\cite{chikhi_space-efficient_2013}}, nous avons décidé de l'implémenter dans notre algorithme. Plus formellement, on calcule alors la \og couverture moyenne du tip \fg, pour ensuite la comparer avec la couverture du nœud d'ancrage \(\text{Coverage}(a)\). Nous avons choisi de supprimé le tip si \textsuperscript{\cite{chikhi_space-efficient_2013}}:  
 \[
-\bar{c}_T = \frac{1}{n} \sum_{i=1}^{n} \text{Coverage}(v_i)
+ n \le \texttt{TOPO\_MAX\_LEN}  \texttt{~et~}   (n \le \texttt{RTC\_MAX\_LEN} \quad \&\& \quad \text{Coverage}(a) > \bar{c}_T) ~ | ~  \bar{c}_T = \frac{1}{n} \sum_{i=1}^{n} \text{Coverage}(v_i)
 \]  
-et on la compare avec la couverture du nœud d'ancrage \(\text{cov}(a)\). Nous avons choisi de supprimé le tip si :  
-\[
-n \le \texttt{TOPO\_MAX\_LEN} \quad || \quad \text{Coverage}(a) > \bar{c}_T
-\]\textcolor{bleumarine}{REF À AJOUTER}.
-Dans notre implémentation on utilise \texttt{disconnectNodes(a, v)} pour couper la branche et marque tous les noeuuds du tip comme \texttt{removed = true}. Ce choix permet de retirer les chemins artefactuels tout en préservant les structures linéaires réelles, plus longues et mieux couvertes.
-
-
-
-\subsubsection{Résolution des Bulles}
-\begin{figure}[h!]
+En pratique, on utilise \texttt{disconnectNodes(a, v)} pour couper la branche et marque tous les noeuds du tip comme \texttt{should\_removed = true}. Ce choix permet de retirer les chemins artefactuels tout en préservant les structures linéaires réelles, plus longues et mieux couvertes. Le second problème rencontré dans les graphes de \textit{De Bruijn} est celui des bulles.\\
+\begin{wrapfigure}{l}{0.45\textwidth}
+\vspace{-8mm}
     \centering
-    \includegraphics[width=0.8\textwidth]{IMAGES/bulle.png}
-    \caption{Détection et résolution d'une bulle simple, souvent due à des erreurs de séquençage ou de petits polymorphismes.}
+    \includegraphics[width=0.6\linewidth]{IMAGES/bulle.png}
+    \caption{\underline{Illustration d'une bulle avec \texttt{Bandage}}}
     \label{fig:resolveBubbles_simple}
-\end{figure}
+\end{wrapfigure}
 
-La méthode \texttt{resolveBubbles()} détecte les divergences où un nœud possède exactement deux enfants qui finissent par converger vers un ancêtre commun plus loin (profondeur limitée par \texttt{SEARCH\_DEPTH\_FACTOR}). L'algorithme compare la couverture cumulée des deux chemins (le chemin "gagnant" est celui avec la plus haute couverture) et marque logiquement les nœuds du chemin perdant comme supprimés.
+ Elles vont apparaître lorsqu'un nœud source $s$ se divise en deux chemins parallèles avant reconverger vers un nœud d'arrivée $t$ . Le motif résultant dans sa grade majorité à des variations biologiques et/ou erreur de séquençage. Si elles ne sont pas résolue elles entraînent une fragmentation artificielle des \textit{contigs}. D'un point de vue formel, pour notre $G = (V, E)$, une bulle est définie par deux chemins  :
+Soient \(s,t\in V\). Considérons l'ensemble \(\mathcal{P}(s,t)\) des chemins simples allant de \(s\) à \(t\).
+Nous nous intéressons à deux éléments distincts \(\mathcal{P}_1,\mathcal{P}_2\in\mathcal{P}(s,t)\) vérifiant $ \mathcal{P}_1\neq\mathcal{P}_2 \text{~et~} \mathcal{P}_1\cap\mathcal{P}_2=\{s,t\}.$ 
+\clearpage 
+On dois définir également la couverture cumulée $\mathcal{C}$ du chemin $\mathcal{P}$, on aura ainsi une résolution de la bulle en sélectionnant $\mathcal{P}_{\max}$ et à supprimer l'autre chemin : \\ 
+\[
+C(\mathcal{P}) = \sum_{v \in \mathcal{P}} \mathrm{Coverage}_{v}\; ;\quad
+\mathcal{P}_{\max} = \arg\max_{\mathcal{P} \in \{\mathcal{P}_1,\mathcal{P}_2\}} C(\mathcal{P})\; ;\quad
+\{\mathcal{P}_1,\mathcal{P}_2\} \setminus \{\mathcal{P}_{\max}\}
+\]
 
-On ne peux pas résoudre toutes les bulles cependant, typiquement des régions complexe répétée et/ou ambigue.
+La méthode \texttt{resolveBubbles()} fait ce travail de détection pour chacun des noeuds possèdants deux voisins qui finissent par converger vers un noeud commun et la profondeur $\mathcal{P}$est  limitée par \texttt{SEARCH\_DEPTH\_FACTOR}). L'algorithme compare $\mathcal{C}$ de $\mathcal{P}_{1} \text{et} \mathcal{P}_{2}$, la branche la moins couverte est marquée à travers  \texttt{removed = true}, puis \texttt{disconnectNodes()}. \\
 
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=0.8\textwidth]{IMAGES/HAAAAAAAAAAAAAA.png}
-    \caption{Exemple d'une structure complexe qui ne peut pas être entièrement résolue par l'algorithme.}
-    \label{fig:resolveBubbles_complex}
-\end{figure}
+\textbf{\underline{Génération des Contigs Bruts :}}\\
 
-\subsection{Génération des Contigs Bruts}
-Une fois le graphe nettoyé, la fonction \texttt{GraphDBJ::generateContigs()} est invoquée pour transformer les chemins de graphe en séquences linéaires.
+Après avoir construit notre graphe et effectué les étapes de simplification (\textit{Tip, bulles},suppression de nos chemins artefactuels), il nous reste à générer nos contigs, i.e les chemins linéaires maximaux $P$ ou aucune \og ambiguité topologique \fg n'est présente. Formellement pour tout noeuds intermédiaires $i$, de degrès entrant $ \deg^{-}$  et sortant $\deg^{+}$  :
+\[
+\mathcal{P} = (v_1, v_2, \dots, v_m) \mid  \forall\, i \in \{2,\dots,m-1\},\; 
+\deg^{-}(v_i) = \deg^{+}(v_i) = 1.
+\]
 
+Finalement si on se rapporte à ce que l'on à vu en cours, on est en droit de dire que ces chemins sont des zones du génome ou l'assemblage est déterministe. Le challenge algorithmique se réparti en trois aspects : détecter les bons points de départ, prolonger le chemin tant que la structure reste univoque et enfin reconstruire la séquence nucléotidique à partir de nos $(k-1)$-mers encodés dans les noeuds de $G$. Pour construire cela on considère que chaque noeud \(v\) est un point de départ du contig si :  $\deg^{-}(v) \neq 1 \quad \text{ou} \quad \deg^{+}(v) \neq 1$ en imposant \(\deg^{+}(v) \ge 1\). À partir d’un tel nœud \(v_0\), on étend le 
+chemin tant que : $\deg^{-}(v_i)=\deg^{+}(v_i)=1.$ Le contig sera maximal quand on atteint un noeud \(v_m\) tel que \(\deg^{+}(v_m)\neq 1\). Considérant ces règles, il nous faut reconstruire la séquence en concaténant le $(k-1)$mer du premier noeud, puis à chaque arc \((v_i \to v_{i+1})\), le dernier nucléotide du $(k-1)$-mer de \(v_{i+1}\). Ainsi, pour un chemin de longueur \(m\), la longueur du contig est logiquement : $(k-1) + (m-1).$\\
 
-\begin{itemize}
-    \item \textbf{Identification des points de départ :} L'algorithme itère sur tous les nœuds et initie un nouveau contig si un nœud est un début potentiel (pas de parents) ou un point de jonction complexe (plusieurs parents).
-    \item \textbf{Traversée gloutonne :} À partir du nœud de départ, une boucle \texttt{while} suit les arêtes sortantes.
-    \begin{itemize}
-        \item Si le nœud courant a un seul enfant, l'extension est triviale.
-        \item En cas de bifurcation (plusieurs enfants), l'algorithme utilise une heuristique de couverture : il sélectionne l'enfant ayant la couverture maximale si celle-ci est supérieure à celle du second meilleur enfant multipliée par \texttt{COVERAGE\_RATIO}.
-    \end{itemize}
-    \item \textbf{Construction de la séquence :} Les nucléotides sont extraits des nœuds et ajoutés progressivement à un objet \texttt{BitVector} représentant le contig en cours de construction.
-\end{itemize}
+L'ensemble de cette logique est implémentée dans la méthode \texttt{generateContigs()}, dont nous vous proposons l'algorithme avec uniquement les grandes étapes de la fonction, à la page suivante. Il parcourt l'ensemble des noeuds du graphe simplifié (plus de \textit{tips,bubbles}), pour déterminer ceux qui peuvent initier un contig. Pour chaque noeud candidat \texttt{startNode}, on vérifie qu'il n’a pas déjà été visité (\texttt{visited}), pour éviter des contigs dupliqués. On test ensuite notre condition topologique  $\deg^{-}(v) \neq 1 \quad \text{ou} \quad \deg^{+}(v) \neq 1$, ce qui va correspondre à soit un noeud de départ potentiel, soit un noeud sans parent, soit une bifurcation (réelle car restante).
+Ensuite on initialise notre contig avec le $(k-1)$-mer du nœud de départ avec (\texttt{addKmerToBitVector()}). Puis on fait un parcours linéaire du graphe en suivant les arêtes sortantes tant que chaque noeud intermédiaire satisfait un chemin simple, $\deg^{-} = \deg^{+} = 1$. En cas de bifurcation, on à fait un choix heuristique basé sur la couverture (\texttt{COVERAGE\_RATIO}), en s'inspirant du fonctionnement de \texttt{minia} et de notre stratégie de résolution des \textit{bubbles}, pour prolonger le contig uniquement si un chemin dominant se dégage. Enfin, La reconstruction de la séquence repose sur le codage des $(k-1)$-mers,fonction \texttt{kmerToString()}. Lors du parcours, seul le dernier nucléotide du nœud suivant est ajouté au contig, conformément à la définition du graphe de De Bruijn vu en cous et à la logique d’extension décrite dans le pseudocode. Cette stratégie évite toute redondance ( \textit{à priori}). Pour finir on encapsule notre contig dans une structure qui contient: la séquence complète, la couverture moyenne du chemin, la longueur totale et un identifiant unique:\\
+\begin{algorithm}[H]
+\textcolor{bleumarine}{\textbf{\caption{\textcolor{bleumarine}{generateContigs() (Simplifié)}}}}
+\KwEntree{Graphe de $G=(V,E)$, $k$, COVERAGE\_RATIO, MAX\_CONTIG\_LEN}
+\KwSortie{Liste de contigs en BitVector.}
+\KwComplexite{Temps : $\mathcal{O}(|V| + \sum_{v \in V} \deg^+(v))$}
+\KwDebut\\
+\Indp
+    \texttt{contigs} $\gets$ liste vide \;
+    \texttt{visited} $\gets$ Dictionnaire pour tous les noeuds \;
 
-\subsection{Fusion des Contigs (Post-traitement)}
-La fonction \texttt{mergeContigs} agit comme le « cerveau » du post-traitement de l'assembleur GraphDBJ. Son objectif principal est de recoudre les contigs fragmentés qui n'ont pas pu être fusionnés lors du parcours du graphe en raison d'erreurs de séquençage ou d'une topologie complexe.
+    \KwPour chaque \texttt{startNode} \KwDans $V$ \\
+    \Indp
+        \KwSi{\texttt{startNode.removed} ou \texttt{visited[startNode]}} \KwAlors \\
+        \Indp\KwContinuer\\ \Indm
+        \KwFinSi\\
+        \KwSi{\texttt{startNode.parents.empty()} ou \texttt{startNode.parents.size() > 1}} \KwAlors\\
+        \Indp
+            \texttt{currentContig} $\gets$ BitVector vide \;
+            addKmerToBitVector(\texttt{currentContig}, startNode.p, k-1) \;
+            \texttt{visited[startNode]} $\gets$ true \;
+            \texttt{curr} $\gets$ startNode \;
 
-Contrairement aux assembleurs standards qui n'inspectent que les extrémités immédiates (les pointes) des contigs, cette implémentation utilise une stratégie de \textbf{« Deep Seeding » (Ensemencement Profond)} couplée à un mécanisme d'\textbf{Extension Bidirectionnelle}.
+            \KwTantQue{sanity\_check < MAX\_CONTIG\_LEN}\\
+            \Indp
+                \texttt{next} $\gets$ \KwChoisir enfant unique ou (dominant selon COVERAGE\_RATIO)\\
+                \texttt{[...]}\\
+                \KwSi{\texttt{next} = null ou \texttt{next.removed} ou \texttt{visited[next]}} \KwAlors\\
+                \Indp\KwSortir\\
+                \Indm
+                \KwFinSi \\
+                \KwAjouter Dernier nucléotide de \texttt{next} à \texttt{currentContig} \;
+                \texttt{visited[next]} $\gets$ true \;
+                \texttt{curr} $\gets$ \texttt{next} \;
+            \Indm   
+            \KwAjouter \texttt{currentContig} à {contigs} \;
+            \KwFinTantQue\\\
+            \Indm \KwFinSi\\
+\Indm
+\KwFinPour\\
+\Indm \KwFin
+\end{algorithm}
+\vspace{5mm}
+\textbf{\underline{Fusion des contigs :}}\\
 
-\input{mergeFig.tikz}
+Nous avons constatés que malgré tout ce travail de simplification, les contigs obtenus avec \texttt{generateContigs()}, restent très \og fragmentés \fg. A l'aide de \textit{bandage} et après discussions, nous pensons que ce problème vient en grande partie d'une orientation inversé de certains contigs (\textit{reverse complément}). Mais aussi à des chevauchements partiels non détectés lorsque nous parcourons le graphe. 
+La fonction \texttt{mergeContigs()} sert à \og recoudre \fg ces derniers pour produire  des séquences plus longues et cohérentes en prenant garde que l'on ne perde pas d'information. Simplement, on peut distinguer deux grandes phases. La phase d'inclusion (\textit{Containment}) qui élimine les contigs totalements inclus dans d'autres, et la phase d'extension (\textit{seed \& extend}) qui cherche à fusionner les contigs restants en fusionnant les chevauchements internes et en gérant l'orientation. Soit notre ensemble de contigs $C$ tel que : 
+\(\mathcal{C} = \{C_1, \dots, C_n\}\) et \(k\) la taille du k-mer utilisé pour l’indexation.\\[1ex]
+Dans la phase d'inclusion (\textit{Containment}), chaque contig \(C_j\) est comparé à tous les autres contigs \(C_i\) (\(i \neq j\)) pour détecter s'il est entièrement contenu dans un contig plus long, on marque \(C_j\) comme absorbé si :  
+\[
+\text{absorbed}[j] = \text{true} \iff \exists i \neq j,\, C_j \subseteq C_i \text{ (avec une tolérance d'erreur } \epsilon_\text{contain}\text{)}
+\]  
+Ce qui est intéressant ici, c'est que tous les nucléotides de \(C_j\) correspondent, à une petite marge d'erreur près, à une sous-séquence d'un autre contig \(C_i\). Dans ce cas que, \(C_j\) est considéré redondant et n'est plus conservé pour la phase suivante. Dans la phase d'extension (\textit{Seed \& Extend}), pour chaque contig maître \(C_m\), on recherche un contig candidat \(C_c\) possédant un k-mer \emph{seed} \(s\) qui correspond à une sous-séquence de \(C_m\) :  
+\[
+\exists s \in C_c : s = C_m[\text{pos}:\text{pos}+k-1] \implies 
+C_m \gets C_m[0:\text{align\_start}-1] \oplus C_c
+\]  
+où \(\oplus\) représente la concaténation après redimensionnement du contig maître pour remplacer la "pointe" éventuellement erronée par la séquence propre du candidat. Le contig candidat \(C_c\) est alors marqué comme absorbé.  
+Cette recherche est effectuée à la fois sur \(C_m\) dans le sens direct et sur son complément inverse \(C_m^\text{RC}\) afin de gérer les contigs qui auraient été assemblés dans la direction opposée.
 
-\subsection{Le « Deep Seeding »}
-La logique de fusion standard examine souvent uniquement les derniers $k$ nucléotides. Cette méthode est rapide mais fragile ; si les 10 dernières bases contiennent une erreur de séquençage, la fusion échoue.
+Ces contigs sont ensuite exploités par la fonction \texttt{exportToGFA()} (que nous ne détaillons pas ici, car nous devons faire des choix)  qui produit un fichier GFA conforme où chaque contig apparaît comme un segment annoté par sa couverture. Cette représentation permet de visualiser efficacement l’assemblage, notamment avec des outils tels que \texttt{Bandage}.
 
-Le \textbf{Deep Seeding} scanne profondément à l'intérieur du contig « Maître » (jusqu'à 5000 pb) pour trouver une correspondance avec un contig « Candidat ». Cela permet à l'algorithme de contourner les « pointes sales » (erreurs en fin de lecture) et de localiser le véritable chevauchement propre, enfoui plus profondément dans la séquence.
-
-\subsection{Phase 1 : Containment}
-Avant de fusionner, l'assembleur doit éliminer la redondance. Souvent, le graphe produit un long contig (ex: 10kpb) et une copie plus courte et redondante (ex: 500pb) qui est identique à une sous-séquence du grand contig.
-
-\subsubsection{Indexation des Départs}
-Une table de hachage (\texttt{start\_map}) est créée pour stocker le premier $k$-mer de chaque contig.
-\begin{itemize}
-    \item \textbf{Efficacité :} Vérifier chaque contig contre tous les autres est en $O(N^2)$. L'indexation réduit considérablement ce coût.
-    \item \textbf{Complément Inverse (RC) :} Nous indexons à la fois le début \textit{Forward} (Sens) et le début \textit{RC} (Anti-sens), car un petit contig peut être orienté « à l'envers » par rapport au maître.
-\end{itemize}
-
-\subsubsection{Logique de Scan}
-L'algorithme itère sur chaque contig « Maître » et scanne chaque position :
-
-\begin{lstlisting}[language=C++, caption={Pseudo-code de la logique d'inclusion}]
-// Logique simplifiee
-Pour chaque position 'pos' dans Maitre :
-   cle = getKmerAt(pos)
-   si (cle existe dans start_map) :
-       Candidat = start_map[cle]
-       Verifier si le Candidat s'insere parfaitement dans le Maitre a 'pos'
-       Si oui -> Marquer le Candidat comme ABSORBE (le supprimer)
-\end{lstlisting}
-
-\subsection{Phase 2 : Extension Profonde}
-Cette phase joint les contigs distincts et propres. La logique est enveloppée dans une boucle \texttt{while(global\_change)}, garantissant que si la fusion de A et B crée une nouvelle queue qui correspond à C, le processus continue jusqu'à stabilisation.
-
-\subsubsection{L'Index de Graines}
-Un index (\texttt{seed\_map}) de tous les candidats disponibles est construit. Nous indexons toutes les $k$-ièmes positions (ex: 0, 31, 62...). Cela réduit l'utilisation mémoire d'un facteur $k$ tout en garantissant la détection de tout chevauchement supérieur à $2k$.
-
-\subsubsection{Le Scanner (Fonction Lambda)}
-La fonction \texttt{try\_extend} scanne en arrière depuis la queue d'un contig Maître (jusqu'à \texttt{MAX\_SCAN\_DEPTH} = 5000pb).
-
-\begin{enumerate}
-    \item \textbf{Recherche :} Vérifie si un $k$-mer à la queue du Maître correspond à une graine (\textit{seed}) d'un Candidat.
-    \item \textbf{Calcul d'Alignement :}
-    \[
-    \text{Position\_Maitre} = \text{position\_sonde} - \text{offset\_graine}
-    \]
-    Si le Maître correspond à la graine du Candidat à l'offset 20, le début du Candidat (offset 0) doit s'aligner 20 bases plus tôt dans le Maître.
-    \item \textbf{La Fusion (Redimensionnement) :}
-\begin{lstlisting}[language=C++]
-master.resize(align_start * 2); // Couper la "pointe sale" du Maitre
-master.append(*to_check);       // Coller le Candidat propre
-\end{lstlisting}
-    De manière cruciale, \texttt{resize} supprime l'extrémité sujette aux erreurs du Maître, la remplaçant par la séquence propre du Candidat.
-\end{enumerate}
-
-\subsection{Le Correctif Bidirectionnel}
-C'est cette logique spécifique qui a résolu le problème où deux grands contigs refusaient de fusionner malgré une tolérance d'erreur élevée.
-
-\subsubsection{Le Problème : Directionnalité et Orientation}
-La logique précédente était « Ajout Uniquement » (\textit{Forward}). Elle tentait $ \text{Maître} + \text{Candidat} $.
-Cela échouait car les contigs étaient dans une configuration « Tête-à-Tête » (visible sur les dotplots par des diagonales opposées $\setminus$ vs $/$). La Queue de A ne correspondait pas à la Tête de B, mais la \textbf{Tête de A} correspondait à la Tête de B (en Complément Inverse).
-
-\subsubsection{La Solution : Extension du Maître Inversé}
-Le code corrigé tente d'étendre le Maître, et si cela échoue, il tente d'étendre le \textbf{Complément Inverse} du Maître.
-
-\begin{lstlisting}[language=C++, caption={Extension bidirectionnelle}]
-// Tentative 1 : Extension Standard
-if (try_extend(contigs[i])) { 
-    // Succes : Maitre etendu vers l'avant
-} 
-// Tentative 2 : Retourner le Maitre !
-else {
-    BitVector masterRC = getBitVectorReverseComplement(contigs[i]);
-    if (try_extend(masterRC)) {
-        // Succes : On retourne le maitre pour permettre la fusion
-        contigs[i] = masterRC; 
-    }
-}
-\end{lstlisting}
-
-Le résultat final est un vecteur de \texttt{BitVector} épuré, exporté ensuite au format FASTA et/ou GFA.
-
-    \subsubsection{Outils auxiliaires}
+\subsection{Outils auxiliaires \textit{(Exercice 7)}}
     
-\texttt{Quast} (QUality ASsessment Tool), dans un premier temps, nous permet d’évaluer la qualité d’un assemblage à l’aide d’un ensemble de statistiques standardisées (longueur totale, taux d’erreurs, fragments mal alignés, etc.). Bien que l’outil puisse fonctionner en mode de novo, sans référence, nous avons choisi d’utiliser ici la séquence de référence fournie pour la mitochondrie du varan de Komodo. Ce choix garantit une évaluat\\ion plus robuste en ancrant nos comparaisons sur un génome connu, ce qui maximise la pertinence
+\texttt{Quast} (QUality ASsessment Tool), dans un premier temps, nous permet d’évaluer la qualité d’un assemblage à l’aide d’un ensemble de statistiques standardisées (longueur totale, taux d’erreurs, fragments mal alignés, etc.). Bien que l’outil puisse fonctionner en mode de novo, sans référence, nous avons choisi d’utiliser ici la séquence de référence fournie pour la mitochondrie du varan de Komodo. Ce choix garantit une évaluation plus robuste en ancrant nos comparaisons sur un génome connu, ce qui maximise la pertinence\\
 
-Dans un second temps, nous avons exécuté \texttt{minia}, un autre algorithme d’assemblage à base de de Bruijn graphs, afin d’obtenir un assemblage alternatif. Cet assemblage sert de point de comparaison directe avec celui obtenu précédemment.\\
+Dans un second temps, nous avons exécuté \texttt{minia}, un autre algorithme d’assemblage à base de graphe de Bruijn, afin d’obtenir un assemblage alternatif. Cet assemblage sert de point de comparaison directe avec celui obtenu précédemment.\\
 
-Enfin, nous avons utilisé \texttt{D-genies}, qui génère un dot-plot visualisant le degré d’identité entre deux séquences. Cet outil complète l’analyse en offrant une représentation intuitive de la synténie, des éventuelles réarrangements, et des discordances locales entre notre assemblage principal et celui obtenu avec \texttt{minia}. L’approche par dot-plot complète notre stratégie puisqu' elle combine des métriques numériques (via Quast) et une inspection visuelle qualitative (via D-genies), ce qui nous à permis de valider nos choix d'implémentations après avoir identifier de grande divergences dans la nature et le nombre de contigs obtenu (dans nos premières éxécutions du programme), nous le détaillerons dans la section discussion. 
-    
-    \subsubsection{La fonction principale}
+Enfin, nous avons utilisé \texttt{D-genies}, qui génère un dot-plot visualisant le degré d’identité entre deux séquences. Cet outil complète l’analyse en offrant une représentation intuitive de la synténie, des éventuelles réarrangements, et des discordances locales entre notre assemblage principal et celui obtenu avec \texttt{minia}. L’approche par dot-plot complète notre stratégie puisqu'elle combine des métriques numériques (via Quast) et une inspection visuelle qualitative (via D-genies), ce qui nous à permis de valider nos choix d'implémentations après avoir identifier de grande divergences dans la nature et le nombre de contigs obtenu (dans nos premières exécutions du programme). 
 
+\newpage

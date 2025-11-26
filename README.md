@@ -11,7 +11,7 @@ Ce projet est un assembleur de génome en C++ qui utilise des graphes de De Brui
 Le nom de l'exécutable, `ramilass`, est une combinaison des prénoms des auteurs (Raphaël, Mickael, Loïk) et du mot "Assembleur".
 
 ## Structure du projet
-![workflow](./imgs/workflow.png)
+![workflow](./report/schema.png)
 -   `src/`: Contient le code source de la librairie et de l'application.
     -   `graphdbj.cpp`/`.h`: Implémentation du graphe de De Bruijn.
     -   `bitvector.cpp`/`.h`: Implémentation d'un vecteur de bits.

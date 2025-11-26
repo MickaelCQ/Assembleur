@@ -1,0 +1,89 @@
+\usetikzlibrary{shapes.geometric, arrows, positioning, calc, fit, backgrounds}
+
+\tikzset{
+    startstop/.style={rectangle, rounded corners, minimum width=3cm, minimum height=1cm, text centered, draw=black, fill=blue!10},
+    process/.style={rectangle, minimum width=3cm, minimum height=1cm, text centered, draw=black, fill=green!10},
+    decision/.style={diamond, aspect=2, minimum width=3cm, minimum height=1cm, text centered, draw=black, fill=orange!10},
+    arrow/.style={thick,->,>=stealth'},
+    block/.style={rectangle, minimum width=3cm, minimum height=1cm, text width=5cm, text centered, draw=black, fill=gray!10},
+    substep/.style={rectangle, minimum width=2.5cm, minimum height=0.8cm, text width=5cm, align=center, draw=black!50, fill=white},
+    % Nouveaux styles pour les cadres de fond
+    phasebox/.style={draw, dashed, rounded corners, inner sep=0.5cm, line width=1pt}
+}
+
+\begin{tikzpicture}[node distance=1.2cm, auto, scale=0.7, transform shape]
+
+    % --- NOEUDS ---
+    \node (start) [startstop] {Début \texttt{mergeContigs}};
+    \node (global_loop_init) [process, below=of start] {Init \texttt{global\_change = true}};
+    \node (global_loop_decision) [decision, below=of global_loop_init] {\texttt{global\_change}?};
+    \node (end) [startstop, right=of global_loop_decision, xshift=2.5cm] {Fin : Retourner contigs};
+    \node (global_loop_reset) [process, below=of global_loop_decision, yshift=-0.5cm] {Reset \texttt{false}};
+
+    % --- PHASE 1 ---
+    \node (phase1_label) [block, below=of global_loop_reset] {PHASE 1 : Containment};
+    \node (phase1_step1) [substep, below=of phase1_label] {1. Indexation Débuts\\ (start\_map)};
+    \node (phase1_step2) [substep, below=of phase1_step1] {2. Scan Inclusion\\ (absorbed)};
+    
+    % --- PHASE 2 ---
+    \node (phase2_label) [block, below=of phase1_step2, yshift=-0.8cm] {PHASE 2 : Extension};
+    \node (phase2_step1) [substep, below=of phase2_label] {1. Indexation Graines\\ (seed\_map)};
+    \node (phase2_loop_start) [process, below=of phase2_step1] {Pour chaque Maître non absorbé};
+    
+    \node (try_std_ext) [process, below=of phase2_loop_start] {Tentative 1 : Extension Std};
+    \node (std_ext_success) [decision, below=of try_std_ext] {Succès ?};
+    \node (merge_success_std) [process, below=of std_ext_success, yshift=-0.5cm] {Change=true, Maître étendu};
+
+    \node (try_rc_ext) [process, right=of std_ext_success, xshift=3cm] {Tentative 2 : Extension RC};
+    \node (rc_ext_success) [decision, below=of try_rc_ext] {Succès ?};
+    \node (merge_success_rc) [process, below=of rc_ext_success, yshift=-0.5cm] {Change=true, Remplacement RC};
+
+    \node (next_master) [process, below=of merge_success_std, yshift=-1.5cm] {Maître suivant};
+    \node (end_loop_phase2) [coordinate, below=of next_master, yshift=-0.5cm] {};
+
+    % --- FLÈCHES ---
+    \draw [arrow] (start) -- (global_loop_init);
+    \draw [arrow] (global_loop_init) -- (global_loop_decision);
+    \draw [arrow] (global_loop_decision) -- node[above] {Non} (end);
+    \draw [arrow] (global_loop_decision) -- node[right] {Oui} (global_loop_reset);
+    \draw [arrow] (global_loop_reset) -- (phase1_label);
+    \draw [arrow] (phase1_label) -- (phase1_step1);
+    \draw [arrow] (phase1_step1) -- (phase1_step2);
+    \draw [arrow] (phase1_step2) -- (phase2_label);
+    \draw [arrow] (phase2_label) -- (phase2_step1);
+    \draw [arrow] (phase2_step1) -- (phase2_loop_start);
+    \draw [arrow] (phase2_loop_start) -- (try_std_ext);
+    \draw [arrow] (try_std_ext) -- (std_ext_success);
+    
+    \draw [arrow] (std_ext_success) -- node[right] {Oui} (merge_success_std);
+    \draw [arrow] (std_ext_success) -- node[above] {Non} (try_rc_ext);
+    
+    \draw [arrow] (try_rc_ext) -- (rc_ext_success);
+    \draw [arrow] (rc_ext_success) -- node[right] {Oui} (merge_success_rc);
+    
+    % Flèche NON qui contourne large
+    \draw [arrow] (rc_ext_success.east) -- node[above] {Non} ++(2,0) |- (next_master.east);
+
+    \draw [arrow] (merge_success_std) -- (next_master);
+    \draw [arrow] (merge_success_rc.south) |- (next_master);
+
+    \draw [arrow] (next_master) -- (end_loop_phase2);
+    \draw [arrow] (end_loop_phase2) -- ++(-7,0) node[midway, above] {Cycle suivant} |- ([yshift=0.5cm]global_loop_decision.north) -- (global_loop_decision.north);
+
+    % --- CADRES DE FOND (BACKGROUNDS) ---
+    % On utilise un layer pour dessiner DERRIÈRE les noeuds existants
+    \begin{pgfonlayer}{background}
+        
+        % Cadre Phase 1 : Englobe le label Phase 1 et l'étape 2
+        \node [fit=(phase1_label) (phase1_step2), 
+               phasebox, fill=blue!5, draw=blue!30, 
+               label={[anchor=north west, inner sep=5pt, color=blue!80]north west:\textbf{PHASE 1}}] {};
+
+        % Cadre Phase 2 : Englobe le label Phase 2, l'extension RC (tout à droite) et le maitre suivant (tout en bas)
+        \node [fit=(phase2_label) (try_rc_ext) (merge_success_rc) (next_master) (phase2_loop_start), 
+               phasebox, fill=red!5, draw=red!30, 
+               label={[anchor=north west, inner sep=5pt, color=red!80]north west:\textbf{PHASE 2}}] {};
+               
+    \end{pgfonlayer}
+
+\end{tikzpicture}

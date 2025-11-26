@@ -1,0 +1,125 @@
+\section{Résultats \& discussion \textit{(Exercice 6 \& 7)}}
+\subsection{Impact des étapes de simplification}
+Sans l'étape de fusion présentée plus haut, le graphe produit de nombreux contigs courts, localement cohérents mais fragmentés, et souvent recouvrants. La fusion rassemble ces segments et fait apparaître un contig unique, plus représentatif de la séquence attendue.\\ 
+
+Dans notre cas d'étude, l'élagage des \textit{tips} et la résolution des bulles n'ont eu (finalement) qu'un impact minimal~: ils réduisent le graphe de 147 à 146 contigs, qui est dans notre cas, un contig compris dans un plus grand. Pour cette instance du problème, ces étapes de simplification ne sont donc pas déterminantes. Pour autant, on pourrait aller plus loin en examinant un plus grand nombre de cas limites et en soumettant des fichiers de lecture de plus grande taille afin de vérifier si cette observation se généralise. C’est un point que nous n’avons malheureusement pas eu le temps d’explorer de manière satisfaisante. \\
+
+Inversement, la génération des chemins linéaires suivie de la fusion par  \og Deep Seeding \fg{} suffit à retrouver un contig continu. Cette étape corrige  naturellement les fragments qui se chevauchent, sans dépendre des heuristiques de nettoyage du graphe. Pour garantir une évaluation honnête, nous avons désactivé l’élagage des \textit{tips} et la résolution des bulles durant les benchmarks. Ces opérations prennent trop de temps pour un résultat similaire dans notre cas biologique. Leur retrait permet donc de mesurer uniquement l’effet réel du couple \og génération + fusion \fg{}. Ce que vous pouvez constater dans la figure 3 ci-dessous :
+\begin{figure}[!h]
+    \centering
+    % Première image (Minia)
+    \begin{subfigure}[b]{0.49\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{IMAGES/ramilass_contigs_unfused_varankomodo_reference.png}
+        \caption{\underline{Ramilass Contigs sans fusion}}
+        \label{fig:minia}
+    \end{subfigure}
+    \hfill % Espace flexible entre les deux images
+    % Deuxième image (Ramilass)
+    \begin{subfigure}[b]{0.49\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{IMAGES/ramilass_contigs_fused_varankomodo_reference.png}
+        \caption{\underline{Ramilass Contigs avec fusion}}
+        \label{fig:ramilass}
+    \end{subfigure}
+    
+    \caption{Comparaison des alignements avec (a) et sans (b) fusion par rapport à la référence Varankomodo}
+    \label{fig:comparaison_alignements}
+\end{figure}
+
+\newpage
+\subsection{(Evaluation quantitative et qualité de l’assemblage \textit{(Exercice 7)}}
+
+\begin{wraptable}{r}{0.52\textwidth}
+\vspace{-1em}
+\centering
+\caption{\textbf{Statistiques d'assemblage : Minia vs Ramilass Fuse}}
+\label{tab:assemblage}
+\rowcolors{2}{white!95!bleumarine!5}{white}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Statistiques} & \textbf{Minia} & \textbf{Ramilass} \\
+\midrule
+\multicolumn{3}{l}{\textit{Référence : longueur = 10 624 bp, GC = 44.14\%}} \\
+\midrule
+Nombre de contigs ($\ge 0$ bp)       & 4     & 3     \\
+Nombre de contigs ($\ge 1000$ bp)    & 1     & 1     \\
+Longueur totale (bp)                  & 10 187 & 10 301 \\
+Plus grand contig (bp)                & 9 936  & 10 094 \\
+GC (\%)                               & 44.05 & 44.03 \\
+Mismatches / 100 kbp                  & 0     & 89.16 \\
+Indels / 100 kbp                      & 0     & 9.91 \\
+\bottomrule
+\end{tabular}
+\vspace{-1em}
+\end{wraptable}
+
+La comparaison entre \texttt{Minia} et \texttt{Ramilass} révèle que ce dernier génère un contig principal plus long et plus proche de la référence (cf. table 1). Bien que légèrement plus déréglé par les erreurs ($\approx 89$/100 kbp), le profil GC reste très proche de la référence (44.03\%), ce qui signe une reconstruction biologique cohérente. Le taux d’erreur correspond à un score Phred d’environ 30, un seuil généralement considéré comme satisfaisant pour l’assemblage.
+\vspace{5mm}
+\begin{wraptable}{l}{0.52\textwidth}
+\vspace{-1em}
+\centering
+\caption{\textbf{Performances : temps d'exécution et mémoire} (table 3)}
+\label{tab:benchmark_results}
+\rowcolors{2}{white!95!bleumarine!5}{white}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Outil} & \textbf{Temps (s)} & \textbf{Mémoire (MB)} \\
+\midrule
+Minia    & $0.59 \pm 0.02$ & $249.7 \pm 1.2$ \\
+Ramilass & $0.32 \pm 0.00$ & $34.2 \pm 0.2$ \\
+SPAdes   & $4.93\pm 0.10$ & $69.9 \pm 0.2$ \\
+\bottomrule
+\end{tabular}
+\vspace{-1em}
+\end{wraptable}
+
+Les mesures de performance confirment l’intérêt du modèle proposé (cf. table 2). L’assembleur s’exécute plus rapidement (0,32 s) et consomme beaucoup moins de mémoire (34 Mo) que \texttt{Minia} (249 Mo) ou \texttt{SPAdes} (69 Mo).  
+Cette efficacité découle d’une représentation compacte par \textit{bitvectors}, d’un traitement minimal des simplifications et d’une fusion basée sur les \textit{seeds} plutôt que sur une reconstruction complète du graphe.  
+La faible variabilité des mesures montre un comportement stable et reproductible, assurant un assemblage proche de la référence tout en minimisant les coûts computationnels.\\
+
+Nous rajouterons avoir utilisé \texttt{Valgrind} pour vérifier l’absence de fuites mémoire. Les résultats confirment que toutes les allocations sont correctement libérées, cet outil découvert en DevOps nous à paru approprié dans le contexte de ce projet, exemple pour une instance de test : {total heap usage: 215,529 allocs, 215,529 frees}.
+
+\subsection{Limites identifiées \& perspectives d'améliorations \textit{(Exercice 6)}}
+
+Nous vous listons/proposons quelques unes des critiques, assurément, non exhaustives de notre travail, ci-dessous.
+
+\textbf{\underline{Prise en charge d'un alphabet limité :}} tout d'abord, rappelons que la gestion des fichiers se limite aux nucléotides A, T, C et G. Les lettres dégénérées du standard \texttt{IUPAC} telles que N, R ou Y sont ignorées, ce qui peut poser problème dans le cadre de fichiers de qualité médiocre, hétérogènes.\\
+
+\textbf{\underline{L'apport de données pairées :}} Une autre limite est les modalités de génération de nos chemins linéaires dans le graphe qui peut conduire à la formation de contigs chimériques. L’intégration de données pairées pourrait limiter ce phénomène et améliorer la résolution de structures complexes. En effet, nous avons remarquer que des amas complexes de \textit{tips} et bulles apparaissent (\autoref{fig:resolveBubbles_complex}), difficiles à résoudre sans heuristique fine.\\ 
+
+\textbf{\underline{La perte d'information haplotypique :}} Nous savons également que pour des génomes polyploïdes, en particulier homozygotes, la fusion des contigs, dans la majorité des assembleurs \textit{de novo}, tend à condenser plusieurs haplotypes en un seul, masquant de la diversité génétique, notre outil ne fera pas exception à cette limite. \\ 
+
+\textbf{\underline{Un compromis qualité/vitesse:}} La stratégie que nous avons adoptée de fusion \og par pas de k-mers \fg  plutôt qu’un nucléotide par nucléotide sacrifie légèrement la qualité pour gagner en vitesse, accélérant l’assemblage certes, mais pouvant introduire de petites erreurs de jonction. \\
+
+\textbf{\underline{La scalabilité}} reste, selon nous, le principal facteur limitant. Bien que l'outil soit performant sur de petits virus ou bactéries, il est probable qu'il échoue sur un génome humain (\(3 \times 10^9\) bases). Trois goulots majeurs ont été identifiés : la taille et le coût mémoire de la structure \texttt{Noeud} (\autoref{lst:noeud_struct}), la fragmentation due aux millions de micro-allocations via \texttt{new}, et la double indirection introduite par \texttt{std::vector<Noeud*>}. Cette dernière entraîne un accès indirect aux données : il faut d'abord lire le vecteur pour récupérer l'adresse du nœud enfant (\texttt{Noeud*}), puis suivre ce pointeur pour accéder aux champs de l'objet. Ce schéma, classique en C++, provoque une surcharge mémoire et dégrade l'efficacité pour de grands volumes de données.
+
+\subsection{Un brin de complexité}
+
+Notre programme se décompose en plusieurs étapes successives dont la complexité globale dépend principalement de \underline{la taille de nos lectures}, du \underline{nombre de k-mers} et du \underline{nombre de contigs}. Nous pensons que la lecture du fichier \texttt{FASTA} et la construction du \textcolor{blue!80!black}{\texttt{BitVector}} se font en temps linéaire par rapport au nombre total de nucléotides, $O(\textcolor{blue!80!black}{N})$ car chaque nucléotide est traité exactement une fois. \\
+
+La création du graphe de kmers via \textcolor{red!80!black}{\texttt{Graphdbj}} suit également une logique linéaire, $O(\textcolor{red!80!black}{N})$, puisque proportionnelle au nombre de k-mers générés. Les étapes de simplification, \textcolor{green!60!black}{\texttt{resolveBubbles}} et \textcolor{green!60!black}{\texttt{clipTips}}, ont une complexité $O(\textcolor{green!60!black}{P} \cdot (\textcolor{green!60!black}{V}+\textcolor{green!60!black}{E}))$, avec \textcolor{green!60!black}{P} le nombre de passes et \textcolor{green!60!black}{V}, \textcolor{green!60!black}{E} le nombre de noeuds et d’arêtes, car chaque passe examine potentiellement dans le pire des cas tous les éléments du graphe brut. Ensuite, la comparaison des kmers entre lectures, effectuée par \textcolor{violet!80!black}{\texttt{CompareKMers}}, est en théorie quadratique en nombre de lectures et linéaire en taille des k-mers, $O(\textcolor{violet!80!black}{R}^2 \cdot \textcolor{violet!80!black}{k})$, puisqu'on doit comparer chaque k-mer à tous ses compères. Mais en pratique on peut dire que seule la portion initiale des k-mers est réellement comparée pour la fusion, justifiant notre choix de ne pas considérer toutes les positions possibles dans le calcul théorique. La fusion des contigs, toujours via \textcolor{violet!80!black}{\texttt{CompareKMers}}, est quadratique en nombre de contigs, $O(\textcolor{violet!80!black}{C}^2 \cdot \textcolor{violet!80!black}{k})$. Enfin, l’export des contigs en FASTA ou GFA via \textcolor{black!70}{\texttt{Convert}} est proportionnel à la somme des longueurs des contigs, $O(\textcolor{black!70}{S})$. En combinant les étapes dominantes que nous venons d'expliciter, la complexité théorique dans le pire des cas est donc :
+
+\[
+\textcolor{blue!80!black}{O(\textcolor{blue!80!black}{N})} + 
+\textcolor{red!80!black}{O(\textcolor{red!80!black}{N})} + 
+\textcolor{green!60!black}{O(\textcolor{green!60!black}{P}(\textcolor{green!60!black}{V}+\textcolor{green!60!black}{E}))} + 
+\textcolor{violet!80!black}{O(\textcolor{violet!80!black}{R}^2 \textcolor{violet!80!black}{k} + \textcolor{violet!80!black}{C}^2 \textcolor{violet!80!black}{k})} + 
+\textcolor{black!70}{O(\textcolor{black!70}{S})} 
+= O(\textcolor{blue!80!black}{N} + \textcolor{green!60!black}{P}(\textcolor{green!60!black}{V}+\textcolor{green!60!black}{E}) + \textcolor{violet!80!black}{R}^2 \textcolor{violet!80!black}{k} + \textcolor{violet!80!black}{C}^2 \textcolor{violet!80!black}{k} + \textcolor{black!70}{S})
+\]
+
+En synthèse, nous proposons comme ordre de grandeur de Landau pour la complexité temporelle de notre algorithme : 
+
+\[
+\boxed{\textcolor{violet!80!black}{O_\text{max}} = O(\textcolor{violet!80!black}{\max(\textcolor{violet!80!black}{R}^2 \textcolor{violet!80!black}{k}, \textcolor{violet!80!black}{C}^2 \textcolor{violet!80!black}{k})})}
+\]
+
+Ajoutons que $(\textcolor{violet!80!black}{R}^2 \cdot \textcolor{violet!80!black}{k})$ domine si le nombre de lectures est grand et que $k$ est conséquent. Mais que $( \textcolor{violet!80!black}{C}^2 \cdot \textcolor{violet!80!black}{k})$ domine si le nombre de contigs est grand et que k est conséquent, donc l'ordre de grandeur synthétique global n'est pas tout à fait $\mathcal{O}(N)^2$.
+
+
+\subsection{Conclusion générale}
+
+Lors de ce TP nous avons réussit a réaliser un petit assembleur pour permettant d'assembler des \textit{short reads} d'individus haploïde ou d'ADN mitochondriaux/chloroplastique. Ce dernier utilise des méthodes bien documenté dans la littérature ainsi que des optimisations en mémoire originales ce qui lui permet d'être a vitesse équivalente, moins gourmand en mémoire et assemblant des contigs plus long que \texttt{minia} pour notre problème biologique. Nous avons entièrement décrit le fonctionnement de notre logiciel avec la description de ses complexités en temps et en mémoire ainsi que la détermination de ses limitations. 
+
+Vous retrouverez l’entièreté du code source sur ce répertoire \hyperlink{https://github.com/MickaelCQ/Assembleur}{Github}. Le projet a été entièrement conçu en privilégiant la reproductibilité, d'où l'intégration de Pixi et la possibilité d'exécuter notre outil dans un conteneur Singularity/Apptainer.

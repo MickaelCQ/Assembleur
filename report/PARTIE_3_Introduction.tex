@@ -1,7 +1,8 @@
 \vspace{-12mm}
+
 \section{Etape de conception}
 \subsection{Stratégies vues en cours \textit{(Exercice 1)}}
-Nous avons vu en cours que la recherche d’une \underline{superchaîne optimale} contenant tous les mots d’une famille \(\mathcal{F}\) est un problème NP-difficile. Par conséquent, nous utilisons des \underline{approches heuristiques} : celles-ci fournissent une solution, mais sans garantie d’optimalité. Trois méthodes ont été étudiées et développées durant le semestre. Comme demandé, voici une synthèse de chacune.
+Nous avons vu en cours que la recherche d’une \underline{superchaîne optimale} contenant tous les mots d’une famille \(\mathcal{F}\) est un problème NP-difficile. Par conséquent, nous utilisons des \underline{approches heuristiques} : celles-ci fournissent une solution, mais sans garantie d’optimalité. Trois méthodes ont été étudiées et développées durant le semestre. Comme demandé, voici une brève synthèse de notre compréhension de ces dernières.
 
 \subsubsection{Approche intuitive : la méthode gloutonne}
 
@@ -19,19 +20,29 @@ Ceci étant fait, l'étape suivante consiste à chercher notre chemin qui va max
 
 Cet algorithme recherche un chemin maximal dans le graphe de chevauchement pour construire une superchaîne. Il commence par identifier un sommet de départ, généralement celui avec le moins d’arêtes entrantes, afin de minimiser les risques de cycles. Ensuite, il construit un chemin en choisissant à chaque étape l’arête de poids maximal vers un sommet non visité. Cette approche permet d’explorer les chevauchements de manière plus globale que la méthode gloutonne. La complexité temporelle est \(\mathcal{O}(n^2 L + n^3)\), car la recherche des arêtes de poids maximal peut nécessiter jusqu’à \(\mathcal{O}(n^3)\) opérations dans le pire cas. La complexité spatiale reste \(\mathcal{O}(n^2)\) pour stocker le graphe.
 
-\subsubsection{Notre choix le graphe de De Bruijn : Avantages \& inconvénients}
+\subsubsection{Notre choix le graphe de De Bruijn : Avantages \& inconvénients (Exercice 2 \& 5)}
 
-Durant les enseignements, nous avons explorés plusieurs "paradigmes" (Gloutonne, OLC \& graphe de De Bruijn), après discussions et analyse des avantages et inconvénients de chaque méthode, nous avons retenu le graphe de De Bruijn pour sa capacité à représenter les relations entre kmers dans de (très) grandes collections de \textit{short reads}, tout en réduisant la complexité liée à l'identification de nos chevauchements exacts. 
+Durant les enseignements, nous avons explorés plusieurs "paradigmes" (Gloutonne, OLC \& graphe de De Bruijn), après discussions et analyse des avantages et inconvénients de chaque méthode, nous avons retenu le graphe de De Bruijn pour sa capacité à représenter les relations entre kmers dans de (très) grandes collections de \textit{short reads}, tout en réduisant la complexité liée à l'identification de nos chevauchements exacts \textsuperscript{\cite{Eulerian, Rizzi_Overlap, Integration, Zhenyu_brujin}}. 
 
 \subsection{Explication des grandes étapes \textit{(Exercice 2)}}
 
 \begin{center} 
     \begin{tikzpicture}
-        \node[anchor=center] at (0,0) {\includegraphics[width=1\textwidth]{SchemaV1.png}};
+        \node[anchor=center] at (0,0) {\includegraphics[width=1\textwidth]{schema.png}};
     \end{tikzpicture}
 \end{center}
-    \newpage
-    \subsubsection{Le module~\texttt{bitvector.cpp}}
+
+\subsubsection{Le langage choisi :}
+
+Il existe de nombreux langages de programmation, tels que le Python, le Go ou encore le Pascal. Mais pour notre projet, le choix s'est tourné vers le C++. Bien sûr, Python aurait été une possibilité, moins performant mais plus facile à intégrer et à manipuler.
+Dans le cadre d'un assembleur, qui peut gérer des fichiers imposants et complexes, un langage efficace est nécessaire.
+Le C++ est l'un des langages les plus performants après le C, qui permet un contrôle total sur la mémoire et est particulièrement efficace et direct.
+
+
+
+
+\newpage
+\subsubsection{Le module~\texttt{bitvector.cpp}}
 
 Comment allons-nous représenter et stocker nos lectures ? Considérant que les technologies modernes de séquençage posent, par le volume de données, des contraintes importantes en mémoire et en performance lors de l'assemblage, il nous a paru pertinent d'utiliser des \texttt{BitVectors}. Parmi les avantages de cette structure, on trouve la \og compacité \fg{} mémoire, i.e. au regard de notre alphabet $\Sigma = \{A,T,G,C\}$, une de nos séquences $s = s_1 s_2 \dots s_n$, avec $s_i \in \Sigma$ dans notre \texttt{FASTA}, peut être codée sur 2 bits par nucléotide via une fonction d'encodage, :
 \[
@@ -41,16 +52,18 @@ Nous avons vu durant les enseignements (DevOps, Algorithmique du texte, ...), qu
 \[
 \text{Gain} = \frac{8n}{2n} = 4,00 = 400\%
 \]
-Une réduction d’un facteur 4 de la mémoire utilisée pour stocker nos lectures, c'est particulièrement pertinent dans un contexte où des millions de lectures doivent être simultanément maintenues en mémoire, notamment lors de la construction d’un graphe de De Bruijn dense. \\
+Une réduction d’un facteur 4 de la mémoire utilisée pour stocker nos lectures, c'est particulièrement pertinent dans un contexte où des millions de lectures doivent être simultanément maintenues en mémoire, notamment lors de la construction d’un graphe de De Bruijn dense.
+
+De plus, l'utilisation d'une seul variable permet de diminuer la quantité de flag mémoire utilisé, diminuant davantage la quantité de mémoire utilisé. \\
 
 D’un point de vue pratique, la gestion du stockage relève de la classe \texttt{bitvector}, qui implémente trois constructeurs. Le premier, permet d’instancier la structure minimale.
 Le second, \texttt{bitvector(sizeElement)}, autorise la définition explicite de la granularité, en fixant la taille de chaque élément dans les blocs de bits. Enfin, le constructeur \texttt{bitvector(sizeElement, dataSize)} préalloue l’espace nécessaire pour un nombre donné de bits ; cette stratégie optimise les performances lorsque la taille finale est connue à l’avance, en limitant les réallocations successives. \\
 
-Du reste, nous avons implémenter un certain nombres de fonctions pour alimenter les bitvectors et maintenir leurs \underline{cohérence interne}. La fonction \texttt{reserve()}, anticipe l'allocation en calculant le nombre de blocs nécessaires. la fonction \texttt{push\_back()} insère un bit à la fin du vecteur (en allouant un nouveau bloc si nécessaire). On à également des fonctions utilitaires comme \texttt{clear()} nous permet de réinitialiser proprement l'objet ou \texttt{size()} pour avoir accès au nombre de bits stockés (pour borné les boucles de parcours). Enfin, \texttt{setSizeElement()} et \texttt{getSizeElement()} gèrent la \og granularité \fg des éléments empaquetés dans les blocs. Sur cette premier partie de la classe nous avons disons le \og coeur mécanique \fg du \texttt{BitVector}. On trouve dans la classe également des \underline{fonctions interactives} comme la conversion complète des bits gérée par \texttt{to\_vector()}, les mécanismes d'initialisations tels que \texttt{createListBit()}, \texttt{addCha()}. Quant à la lecture d'un bit à un index donné est effectué apr \texttt{readBitVector()}. Après avoir présenté le \texttt{BitVector} intéressons nous à la classe \texttt{graphdbj}.
+Du reste, nous avons implémenter un certain nombres de fonctions pour alimenter les bitvectors et maintenir leurs \underline{cohérence interne}. La fonction \texttt{reserve()}, anticipe l'allocation en calculant le nombre de blocs nécessaires. la fonction \texttt{push\_back()} insère un bit à la fin du vecteur (en allouant un nouveau bloc si nécessaire). On à également des fonctions utilitaires comme \texttt{clear()} nous permet de réinitialiser proprement l'objet ou \texttt{size()} pour avoir accès au nombre de bits stockés (pour borné les boucles de parcours). Enfin, \texttt{setSizeElement()} et \texttt{getSizeElement()} gèrent la \og granularité \fg des éléments empaquetés dans les blocs. Sur cette premier partie de la classe nous avons le \og coeur mécanique \fg du \texttt{BitVector}. On trouve dans la classe également des \underline{fonctions interactives} comme la conversion des bits gérée par \texttt{to\_vector()}, les mécanismes d'initialisations tels que \texttt{createListBit()}, \texttt{addCha()}. Quant à la lecture d'un bit à un index donné est effectué par \texttt{readBitVector()}. Après avoir présenté le \texttt{BitVector} intéressons nous à la classe \texttt{graphdbj}.
  
 \newpage
 \subsubsection{La classe \texttt{convert.cpp}}
-Nous nous concentrons maintenant sur la classe \texttt{convert} qui exploite les fonctions de \texttt{bitvector} pour lire les fichiers \texttt{FASTA/Q}, encoder les séquences en \text{bits} et enregistrer les positions de fin de lecture. La fonction principale est \texttt{processFile()}: \\
+La classe \texttt{convert} exploite les fonctions de \texttt{bitvector} pour lire les fichiers \texttt{FASTA/Q}, encoder les séquences en \text{bits} et enregistrer les positions de fin de lecture. La fonction principale est \texttt{processFile()}: \\
 
 \begin{algorithm}[H]
 \textcolor{bleumarine}{\textbf{\caption{\textcolor{bleumarine}{processFile(filename)}}}}
@@ -103,7 +116,7 @@ Nous nous concentrons maintenant sur la classe \texttt{convert} qui exploite les
 \KwFin
 \end{algorithm}
 
-L'approche que nous avons retenue privilégie un parcours linéaire, permettant un usage minimal de mémoire et une conversion différée des séquences via le tampon \texttt{cSeq}. Remarquons, que nos lignes ne commençant pas par \texttt{>} sont logiquement considérées comme des (fragments) de séquence. Les espaces sont éliminés, puis la longueur totale est mise à jour et la ligne est concaténée au tampon \texttt{cSeq}. Ces opérations sont linéaires en la taille des lignes. Si une séquence reste non traitée à la fin du fichier (cas le plus courant en \texttt{FASTA}), elle est convertie une ultime fois avant que le fichier ne soit fermé. Par la fonction \texttt{convertSeq} présentée dans l'algorithme ci-dessous : \\
+L'approche que nous avons retenue privilégie un parcours linéaire, permettant un usage minimal de mémoire et une conversion différée des séquences via le tampon \texttt{cSeq}. Remarquons, que nos lignes ne commençant pas par \texttt{>} sont logiquement considérées comme des (fragments) de séquence. Les espaces sont éliminés, puis la longueur totale est mise à jour et la ligne est concaténée au tampon \texttt{cSeq}. Ces opérations sont linéaires en la taille des lignes. Si une séquence reste non traitée à la fin du fichier (cas le plus courant en \texttt{FASTA}), elle est convertie une ultime fois avant que le fichier ne soit fermé. La fonction \texttt{convertSeq} présentée dans l'algorithme ci-dessous permet de passer chaque caractères en bits: \\
 
 \begin{algorithm}[H]
 \textcolor{bleumarine}{\textbf{\caption{\textcolor{bleumarine}{convertSeq(sequence)}}}}
@@ -126,19 +139,5 @@ L'approche que nous avons retenue privilégie un parcours linéaire, permettant 
 \end{algorithm}
 \\
 
-La complexité temporelle totale est en $\mathcal{O}(n)$, où $n$ est le nombre de caractères du fichier. Chaque caractère est lu et traité une seule fois, les réservations sont amorties en temps constant, aucune opération quadraqtique n'est nécessaire. Cette propriété fait de \texttt{processFile} un parseur \texttt{FASTA} intéressant pour des fichiers de grande taille. Regardons maintenant le coeur algorithmique du programme la classe \texttt{graphdbj}.
-
-    \subsubsection{La classe \texttt{graphdbj.cpp}}
-    \subsubsection{Usage d'outils auxiliaires}
-    Trois outils sont utilisé.
-    Quast (QUality ASsessment Tool) dans un premier temps, permet d'évaluer l'assemblage avec plusieurs statistique. Bien qu'il marche aussi sans référence, ici nous avons utiliser la référence du varan du komodo. Cela nous permet de comparer notre assemblage avec.
-
-    Après, des résultats en était générer par minia, un autre algorithme d'assemblage.
-    Il as aussi était utilisé avec Quast pour pouvoir le comparer avec notre outil.
-    
-    
-    dgenis, minia et quast
-    
-    \subsubsection{La fonction principale}
-
-
+La complexité temporelle totale est en $\mathcal{O}(n)$, où $n$ est le nombre de caractères du fichier. Chaque caractère est lu et traité une seule fois, les réservations sont amorties en temps constant, aucune opération quadraqtique n'est nécessaire. Cette propriété fait de \texttt{processFile} un parseur \texttt{FASTA} intéressant pour des fichiers de grande taille. 
+\newpage

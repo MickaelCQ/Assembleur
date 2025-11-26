@@ -1,0 +1,233 @@
+\appendix
+\renewcommand{\thesection}{\Alph{section}}
+
+\addtocontents{toc}{
+  \protect\renewcommand{\protect\cftsecpagefont}{}%
+  \protect\renewcommand{\protect\cftsubsecpagefont}{}%
+  \protect\renewcommand{\protect\cftsecafterpnum}{}%
+  \protect\renewcommand{\protect\cftsubsecafterpnum}{}%
+}
+\section{Annexes}
+\subsection*{Etat de l'art : algorithme Glouton \textit{(Exercice 1)}}
+\label{algo1Glouton}
+\begin{center}
+\begin{algorithm}[H]
+\textcolor{bleumarine}{\textbf{\caption{\textcolor{bleumarine}{Assemblage\_Glouton()}}}}
+\KwEntree{Famille de mots \( F \) de taille \( n \), où \( L \) est la longueur moyenne des mots}
+\KwSortie{Chaîne de caractères \( S \) assemblée}
+\KwComplexite{Temps : \(\mathcal{O}(n^3 + n^2 L)\), Espace : \(\mathcal{O}(n^2)\)}
+\KwDebut \\
+    \Indp
+     \( S \gets \text{""} \) \textcolor{black!50} ; \( M \gets \) tableau d'entiers de taille \( n \times n \) \textcolor{black!50}{~($\mathcal{O}(n^2)$)}\;
+    \KwPour \( i \) allant de \( 0 \) à \( n-1 \) \KwFaire \textcolor{black!50}{~($\mathcal{O}(n^2 L)$)}\\
+        \Indp
+        \KwPour \( j \) allant de \( 0 \) à \( n-1 \) \KwFaire \textcolor{black!50}{~($\mathcal{O}(n L)$)}\\
+            \Indp
+            \( M[i][j] \gets \text{longueur du chevauchement maximal entre } F[i] \text{ et } F[j] \) \textcolor{black!50}{~($\mathcal{O}(L)$)}\;
+            \Indm
+        \KwFinPour \\
+        \Indm
+    \KwFinPour \\
+    \( m \gets 0 \) \textcolor{black!50}\;
+    \KwTantQue \( m < n-1 \) \KwFaire \textcolor{black!50}{~($\mathcal{O}(n)$)}\\
+        \Indp
+        \( \textit{imax} \gets 0 \); \( \textit{jmax} \gets 0 \); \( \textit{max} \gets M[0][0] \) \textcolor{black!50}\;
+        \KwPour \( i \) allant de \( 0 \) à \( n-1 \) \KwFaire \textcolor{black!50}{~($\mathcal{O}(n^2)$)}\\
+            \Indp
+            \KwPour \( j \) allant de \( 0 \) à \( n-1 \) \KwFaire \textcolor{black!50}{~($\mathcal{O}(n)$)}\\
+                \Indp
+                \KwSi \( \textit{max} < M[i][j] \) \KwAlors \textcolor{black!50}\\
+                    \Indp
+                    \( \textit{imax} \gets i \); \( \textit{jmax} \gets j \); \( \textit{max} \gets M[i][j] \) \textcolor{black!50}\;
+                    \Indm
+                \KwFinSi \\
+                \Indm
+            \KwFinPour \\
+            \Indm
+        \KwFinPour \\
+        \( S \gets S + F[\textit{imax}][0:\text{longueur}(F[\textit{imax}]) - \textit{max}] \) \textcolor{black!50}{~($\mathcal{O}(L)$)}\;
+        \( S \gets S + F[\textit{jmax}] \) \textcolor{black!50}{~($\mathcal{O}(L)$)}\;
+        \KwPour \( i \) allant de \( 0 \) à \( n-1 \) \KwFaire \textcolor{black!50}{~($\mathcal{O}(n)$)}\\
+            \Indp
+            \( M[\textit{imax}][i] \gets -1 \); \( M[i][\textit{jmax}] \gets -1 \) \textcolor{black!50}\;
+            \Indm
+        \KwFinPour \\
+        \( m \gets m + 1 \) \textcolor{black!50}\;
+        \Indm
+    \KwFinTantQue \\
+    \KwRetourner \( S \) \textcolor{black!50}\;
+\Indm
+\KwFin
+\end{algorithm}
+\end{center}
+
+\subsection*{Etat de l'art : construction du graphe de chevauchement \textit{(Exercice 1)}}
+
+\begin{center}
+\begin{algorithm}[H]
+\textcolor{bleumarine}{\textbf{\caption{Build\_Graphe\_Chevauchement()}}}
+\KwEntree{Famille de mots $\mathcal{F}$ , où chaque \( F_i \) est un mot}
+\KwSortie{Graphe de chevauchement \( G = (V, E) \), où \( V \) est l'ensemble des sommets (chaque sommet représente un mot de \( F \)) et \( E \) est l'ensemble des arêtes pondérées par la longueur du chevauchement}
+\KwComplexite{Temps : \(\mathcal{O}(n^2 L)\), Espace : \(\mathcal{O}(n^2)\) où \( L \) est la longueur moyenne des mots}
+\KwDebut \\
+    \Indp
+    \( V \gets F \) \;
+    \( E \gets "" \) \;
+    \KwPour \( i \) allant de \( 0 \) à \( n-1 \) \KwFaire \textcolor{black!50}{~($\mathcal{O}(n^2 L)$)}\\
+        \Indp
+        \KwPour \( j \) allant de \( 0 \) à \( n-1 \) \KwFaire \textcolor{black!50}{~($\mathcal{O}(n L)$)}\\
+            \Indp
+            \KwSi \( i \neq j \) \KwAlors \\
+                \Indp
+                \( k \gets \text{longueur du chevauchement maximal entre } F[i] \text{ et } F[j] \) \textcolor{black!50}{~($\mathcal{O}(L)$)}\;
+                \KwSi \( k > 0 \) \KwAlors \\
+                    \Indp
+                    \( E \gets E \cup \{(F[i], F[j], k)\} \) \;
+                    \Indm
+                \KwFinSi \\
+                \Indm
+            \KwFinSi \\
+            \Indm
+        \KwFinPour \\
+        \Indm
+    \KwFinPour \\
+    \KwRetourner \( G = (V, E) \) \;
+\Indm
+\KwFin
+\end{algorithm}
+\end{center}
+
+
+\begin{center}
+\begin{figure}
+\begin{algorithm}[H]
+\textcolor{bleumarine}{\textbf{\caption{Assemblage\_Graphe\_Chevauchement()}}}
+\KwEntree{Famille de mots $\mathcal{F}$; graphe de chevauchement \( G = (V, E) \) construit à partir de $\mathcal{F}$}
+\KwSortie{Chaîne de caractères \( S \) assemblée}
+\KwComplexite{Temps : \(\mathcal{O}(n^2 L + n^3)\), Espace : \(\mathcal{O}(n^2)\)}
+\KwDebut \\
+    \Indp
+    " Initialisation"\\
+    \( S \gets \text{""} \) \;
+    \( \text{Visite} \gets \) tableau de booléens de taille \( n \), initialisé à \(\text{FAUX}\) \;
+    \( \text{chemin} \gets \) liste vide \;
+    \( \text{degré\_entrant} \gets \) tableau d'entiers de taille \( n \), initialisé à \( 0 \) \;
+
+    % Calcul des degrés entrants pour chaque sommet
+    \KwPour chaque arête \( (u, v, k) \in E \) \KwFaire \\
+        \Indp
+        \( \text{degré\_entrant}[v] \gets \text{degré\_entrant}[v] + 1 \) \;
+        \Indm
+    \KwFinPour
+
+    % Sélection du sommet de départ (celui avec le plus petit degré entrant)
+    \( u \gets \) sommet avec le plus petit \(\text{degré\_entrant}\) \;
+
+    % Construction du chemin en suivant les arêtes de poids maximal
+    \KwTantQue \( u \neq \text{AUCUN} \) \KwFaire \\
+        \Indp
+        \( \text{chemin}.ajouter(u) \) \;
+        \( \text{Visite}[u] \gets \text{VRAI} \) \;
+        % Trouver le sommet non Visite avec le chevauchement maximal
+        \( v \gets \) sommet non Visite tel que \( (u, v, k) \in E \) et \( k \) est maximal \;
+        \( u \gets v \) \;
+        \Indm
+    \KwFinTantQue
+
+    % Construction de la superchaîne \( S \) à partir du chemin
+    \KwSi \( \text{chemin.taille} > 0 \) \KwAlors \\
+        \Indp
+        \( S \gets F[\text{chemin}[0]] \) \;
+        \KwPour \( i \) allant de \( 1 \) à \( \text{chemin.taille} - 1 \) \KwFaire \\
+            \Indp
+            \( k \gets \) longueur du chevauchement entre \( F[\text{chemin}[i-1]] \) et \( F[\text{chemin}[i]] \) \;
+            \( S \gets S + F[\text{chemin}[i]][k:] \) \;
+            \Indm
+        \KwFinPour \\
+        \Indm
+    \KwFinSi
+
+    \KwRetourner \( S \) \;
+\Indm
+\KwFin
+\end{algorithm}
+\caption{\underline{Etat de l'art :Algorithme de construction du graphe de chevauchement, comme étudié en cours}}
+\end{figure}
+\end{center}
+
+\newpage
+\subsection*{Spécifications du Système pour les benchmarks}
+\begin{table}[h!]
+    \centering
+    \begin{tabular}{l l}
+        \toprule
+        \textbf{Catégorie} & \textbf{Détail} \\
+        \midrule
+        \multicolumn{2}{l}{\textbf{Système}} \\
+        Système d'Exploitation & \textbf{Ubuntu 24.04.3 LTS} \\
+        Noyau (Kernel) & \textbf{6.14.0-36-generic} \\
+        \midrule
+        \multicolumn{2}{l}{\textbf{Processeur (CPU)}} \\
+        Modèle & \textbf{AMD Ryzen 7 7730U with Radeon Graphics} \\
+        Architecture & $\text{x86\_64}$ \\
+        Cœurs physiques | Threads & $\text{8 cœurs} \mid \text{16 threads}$ \\
+        Fréquence Max. & $4547 \text{ MHz}$ \\
+        \midrule
+        \multicolumn{2}{l}{\textbf{Mémoire Vive (RAM)}} \\
+        Taille Totale & $\text{15 GiB}$ \\
+        \midrule
+        \multicolumn{2}{l}{\textbf{Graphique (GPU)}} \\
+        Contrôleur | Modèle & \textbf{Advanced Micro Devices, Inc. [AMD/ATI]} \\
+        Produit (Puce Intégrée) & \textbf{Barcelo (AMD Radeon Graphics)} \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:specs}
+    \caption{Spécifications du Système - Ubuntu}
+\end{table}
+
+
+\newpage 
+\subsection*{Exemple d'une structure complexe : cas limite de notre algorithme \textit{(Exercice 6 )}}
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=1\textwidth]{IMAGES/HAAAAAAAAAAAAAA.png}
+    \caption{\underline{Visualisation \texttt{Bandage} d'une structure non résolue par l'algorithme.}}
+    \label{fig:resolveBubbles_complex}
+\end{figure}
+
+
+\input{mergeFig.tikz}
+
+
+\begin{table}[h!]
+    \centering
+        \caption{Répartition du temps d'exécution optimisé de l'Assembleur GraphDBJ.}
+    \label{tab:execution_time_new}
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Étape} & \textbf{Temps (ms)} & \textbf{Pourcentage du Total} \\
+        \midrule
+        Création du Graphe & 175 & $53.8\%$ \\
+        Fusion des Contigs & 100.5 & $30.9\%$ \\
+        Écriture Fichiers & 36 & $11.1\%$ \\
+        Génération Contigs & 9.5 & $2.9\%$ \\
+        Lecture FASTA & 4.5 & $1.4\%$ \\
+        Simplification & 0 & $0.0\%$ \\
+        \bottomrule
+        \textbf{TOTAL} & $\mathbf{325.5}$ & $\mathbf{100.0\%}$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\section{Références}
+\vspace{3mm}
+\subsection*{Bibliographie}
+\printbibliography[heading=none]
+
+\subsection*{Webographie :}
+\textbf{QUAST : }
+\url{https://github.com/ablab/quast}\\
+\textbf{D-GENIES : }\url{https://dgenies.toulouse.inra.fr/}\\
+\textbf{Minia : }\url{https://gatb.inria.fr/software/minia/}\\
+\textbf{SPades : }\url{https://github.com/ablab/spades}\\
+
