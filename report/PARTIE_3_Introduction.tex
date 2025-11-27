@@ -116,7 +116,7 @@ La classe \texttt{convert} exploite les fonctions de \texttt{bitvector} pour lir
 \KwFin
 \end{algorithm}
 
-L'approche que nous avons retenue privilégie un parcours linéaire, permettant un usage minimal de mémoire et une conversion différée des séquences via le tampon \texttt{cSeq}. Remarquons, que nos lignes ne commençant pas par \texttt{>} sont logiquement considérées comme des (fragments) de séquence. Les espaces sont éliminés, puis la longueur totale est mise à jour et la ligne est concaténée au tampon \texttt{cSeq}. Ces opérations sont linéaires en la taille des lignes. Si une séquence reste non traitée à la fin du fichier (cas le plus courant en \texttt{FASTA}), elle est convertie une ultime fois avant que le fichier ne soit fermé. La fonction \texttt{convertSeq} présentée dans l'algorithme ci-dessous permet de passer chaque caractères en bits: \\
+L'approche que nous avons retenue privilégie un parcours linéaire, permettant un usage minimal de mémoire et une conversion différée des séquences via le tampon \texttt{cSeq}. Remarquons, que nos lignes ne commençant pas par '\texttt{>}' sont logiquement considérées comme des (fragments) de séquence. Les espaces sont éliminés, puis la longueur totale est mise à jour et la ligne est concaténée au tampon \texttt{cSeq}. Ces opérations sont linéaires en la taille des lignes. Si une séquence reste non traitée à la fin du fichier (cas le plus courant en \texttt{FASTA}), elle est convertie une ultime fois avant que le fichier ne soit fermé. La fonction \texttt{convertSeq} présentée dans l'algorithme ci-dessous permet de passer chaque caractères en bits: \\
 
 \begin{algorithm}[H]
 \textcolor{bleumarine}{\textbf{\caption{\textcolor{bleumarine}{convertSeq(sequence)}}}}
